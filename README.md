@@ -43,6 +43,30 @@ The project includes several helpful make commands:
 - `make test` - Run tests
 - `make lint` - Run linters (flake8, isort, black)
 - `make format` - Format code with isort and black
+- `make coverage` - Run tests with coverage report
+- `make coverage-html` - Generate HTML coverage report
+
+## Testing and Code Coverage
+
+### Running Tests with Coverage
+
+To run tests with coverage reporting:
+
+```bash
+make coverage
+```
+
+For a detailed HTML coverage report:
+
+```bash
+make coverage-html
+```
+
+The HTML report will be generated in the `htmlcov` directory.
+
+### Coverage Configuration
+
+The project uses a `.coveragerc` file to configure coverage settings. This ensures consistent coverage reporting across different environments.
 
 ## License
 
