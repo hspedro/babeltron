@@ -11,6 +11,7 @@ services:
       - ./models:/models
     environment:
       - MODEL_PATH=/models
+      - CACHE_URL=in-memory
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]

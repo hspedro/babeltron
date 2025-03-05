@@ -169,6 +169,10 @@ The Docker setup mounts the local `./models` directory to `/models` inside the c
 
 If no models are found when starting the container, you'll be prompted to download the small model automatically.
 
+## Contributing
+
+Install pre-commit hooks with `make pre-commit-install` and refer to the [CONTRIBUTING.md](docs/CONTRIBUTING.md) file for more information.
+
 ## License
 
 MIT License

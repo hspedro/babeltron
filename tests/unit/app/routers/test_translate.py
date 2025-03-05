@@ -101,7 +101,7 @@ class TestTranslateRouter:
 
         # Verify the response
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-        
+
         # Check the response content for the error message
         data = response.json()
         assert "detail" in data
@@ -252,7 +252,7 @@ class TestTranslateRouter:
             mock_model.half.return_value = mock_model  # Mock the half() method
             mock_model.to.return_value = mock_model    # Mock the to() method
             mock_tokenizer = MagicMock()
-            
+
             mock_model_class.from_pretrained.return_value = mock_model
             mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
@@ -264,12 +264,12 @@ class TestTranslateRouter:
                 MODEL_PATH = translate_module.get_model_path()
                 print(f"Loading model from: {MODEL_PATH}")
                 translate_module.model = mock_model_class.from_pretrained(MODEL_PATH)
-                
+
                 # Apply FP16 compression if enabled and supported
                 if translate_module.MODEL_COMPRESSION_ENABLED and torch.cuda.is_available():
                     translate_module.model = translate_module.model.half()
                     translate_module.model = translate_module.model.to('cuda')
-                    
+
                 translate_module.tokenizer = mock_tokenizer_class.from_pretrained(MODEL_PATH)
                 print("Model loaded successfully")
             except Exception as e:
@@ -278,7 +278,7 @@ class TestTranslateRouter:
             # Verify the model was converted to FP16 and moved to GPU
             mock_model.half.assert_called_once()
             mock_model.to.assert_called_once_with('cuda')
-            
+
             # Verify the model and tokenizer were loaded correctly
             mock_model_class.from_pretrained.assert_called_once()
             mock_tokenizer_class.from_pretrained.assert_called_once()
@@ -307,7 +307,7 @@ class TestTranslateRouter:
             mock_model.half.return_value = mock_model
             mock_model.to.return_value = mock_model
             mock_tokenizer = MagicMock()
-            
+
             mock_model_class.from_pretrained.return_value = mock_model
             mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
@@ -319,12 +319,12 @@ class TestTranslateRouter:
                 MODEL_PATH = translate_module.get_model_path()
                 print(f"Loading model from: {MODEL_PATH}")
                 translate_module.model = mock_model_class.from_pretrained(MODEL_PATH)
-                
+
                 # Apply FP16 compression if enabled and supported
                 if translate_module.MODEL_COMPRESSION_ENABLED and torch.cuda.is_available():
                     translate_module.model = translate_module.model.half()
                     translate_module.model = translate_module.model.to('cuda')
-                    
+
                 translate_module.tokenizer = mock_tokenizer_class.from_pretrained(MODEL_PATH)
                 print("Model loaded successfully")
             except Exception as e:
@@ -333,7 +333,7 @@ class TestTranslateRouter:
             # Verify the model was NOT converted to FP16 or moved to GPU
             mock_model.half.assert_not_called()
             mock_model.to.assert_not_called()
-            
+
             # Verify the model and tokenizer were loaded correctly
             mock_model_class.from_pretrained.assert_called_once()
             mock_tokenizer_class.from_pretrained.assert_called_once()
@@ -362,7 +362,7 @@ class TestTranslateRouter:
             mock_model.half.return_value = mock_model
             mock_model.to.return_value = mock_model
             mock_tokenizer = MagicMock()
-            
+
             mock_model_class.from_pretrained.return_value = mock_model
             mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
@@ -374,12 +374,12 @@ class TestTranslateRouter:
                 MODEL_PATH = translate_module.get_model_path()
                 print(f"Loading model from: {MODEL_PATH}")
                 translate_module.model = mock_model_class.from_pretrained(MODEL_PATH)
-                
+
                 # Apply FP16 compression if enabled and supported
                 if translate_module.MODEL_COMPRESSION_ENABLED and torch.cuda.is_available():
                     translate_module.model = translate_module.model.half()
                     translate_module.model = translate_module.model.to('cuda')
-                    
+
                 translate_module.tokenizer = mock_tokenizer_class.from_pretrained(MODEL_PATH)
                 print("Model loaded successfully")
             except Exception as e:
@@ -388,7 +388,7 @@ class TestTranslateRouter:
             # Verify the model was NOT converted to FP16 or moved to GPU
             mock_model.half.assert_not_called()
             mock_model.to.assert_not_called()
-            
+
             # Verify the model and tokenizer were loaded correctly
             mock_model_class.from_pretrained.assert_called_once()
             mock_tokenizer_class.from_pretrained.assert_called_once()
