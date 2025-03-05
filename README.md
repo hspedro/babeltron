@@ -35,6 +35,38 @@ curl -sSL https://install.python-poetry.org | python3 -
 make install
 ```
 
+## Downloading the Translation Model
+
+```
+# Download the small model (418M parameters, ~1GB disk space)
+make download-model
+
+# Or download medium model (1.2B parameters, ~2.5GB disk space)
+make download-model-medium
+
+# Or download large model (12B parameters, ~24GB disk space)
+make download-model-large
+```
+
+### Model Size Considerations
+
+- **Small (418M)**: ~1GB disk space, less memory required, faster but less accurate
+- **Medium (1.2B)**: ~2.5GB disk space, moderate memory requirements
+- **Large (12B)**: ~24GB disk space, requires significant RAM/GPU memory
+
+Choose based on your hardware constraints and translation quality requirements.
+
+## Model Workflow
+
+The complete workflow for using Babeltron involves:
+
+1. **Install dependencies**: `make install`
+2. **Download a model**: `make download-model` (or medium/large variants)
+3. **Package the model**: `make package-model`
+4. **Serve the model**: `make serve-model`
+
+Each step builds on the previous one. You must download a model before packaging it, and package it before serving it.
+
 ## Development Commands
 
 The project includes several helpful make commands:

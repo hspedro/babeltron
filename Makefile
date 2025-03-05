@@ -1,4 +1,4 @@
-.PHONY: check-poetry install test lint format help system-deps coverage coverage-html
+.PHONY: check-poetry install test lint format help system-deps coverage coverage-html package-model serve-model download-model download-model-small download-model-medium download-model-large clean
 
 # Extract target descriptions from comments
 help: ## Show this help message
@@ -9,6 +9,13 @@ help: ## Show this help message
 
 POETRY := $(shell command -v poetry 2> /dev/null)
 UNAME := $(shell uname -s)
+
+# Model packaging variables
+MODEL_NAME = m2m_translation
+MODEL_VERSION = 1.0
+MODEL_DIR = babeltron/model
+HANDLER_PATH = babeltron/handler/m2m_handler.py
+MODEL_STORE = model_store
 
 system-deps: ## Install system dependencies required for the project
 	@echo "Installing system dependencies..."
@@ -60,3 +67,69 @@ coverage: check-poetry ## Run tests with coverage report
 coverage-html: check-poetry ## Generate HTML coverage report
 	@echo "Generating HTML coverage report..."
 	@poetry run pytest --cov=babeltron --cov-report=html
+
+package-model: check-poetry ## Package the M2M translation model for TorchServe
+	@echo "Packaging model..."
+	@mkdir -p $(MODEL_STORE)
+	@echo "Checking model directory contents:"
+	@ls -la $(MODEL_DIR)
+
+	@if [ ! -f "$(MODEL_DIR)/pytorch_model.bin" ] && [ ! -f "$(MODEL_DIR)/model.safetensors" ]; then \
+		echo "Error: Model files not found. Please run 'make download-model' first."; \
+		exit 1; \
+	fi
+
+	@echo "Using model files from $(MODEL_DIR)"
+	@MODEL_FILE=$$(if [ -f "$(MODEL_DIR)/pytorch_model.bin" ]; then echo "$(MODEL_DIR)/pytorch_model.bin"; else echo "$(MODEL_DIR)/model.safetensors"; fi) && \
+	echo "Using model file: $$MODEL_FILE" && \
+	echo "Checking for required tokenizer files..." && \
+	if [ ! -f "$(MODEL_DIR)/sentencepiece.bpe.model" ]; then \
+		echo "Warning: sentencepiece.bpe.model not found"; \
+	fi && \
+	if [ ! -f "$(MODEL_DIR)/tokenizer_config.json" ]; then \
+		echo "Warning: tokenizer_config.json not found"; \
+	fi && \
+	EXTRA_FILES="$(MODEL_DIR)/config.json" && \
+	if [ -f "$(MODEL_DIR)/tokenizer_config.json" ]; then \
+		EXTRA_FILES="$$EXTRA_FILES,$(MODEL_DIR)/tokenizer_config.json"; \
+	fi && \
+	if [ -f "$(MODEL_DIR)/sentencepiece.bpe.model" ]; then \
+		EXTRA_FILES="$$EXTRA_FILES,$(MODEL_DIR)/sentencepiece.bpe.model"; \
+	fi && \
+	if [ -f "$(MODEL_DIR)/tokenizer.json" ]; then \
+		EXTRA_FILES="$$EXTRA_FILES,$(MODEL_DIR)/tokenizer.json"; \
+	fi && \
+	echo "Using extra files: $$EXTRA_FILES" && \
+	echo "Running torch-model-archiver..." && \
+	poetry run torch-model-archiver \
+		--model-name $(MODEL_NAME) \
+		--version $(MODEL_VERSION) \
+		--serialized-file $$MODEL_FILE \
+		--handler $(HANDLER_PATH) \
+		--extra-files "$$EXTRA_FILES" \
+		--export-path $(MODEL_STORE) || { echo "Error: torch-model-archiver failed"; exit 1; }
+	@echo "Model packaged successfully to $(MODEL_STORE)/$(MODEL_NAME).mar"
+
+serve-model: package-model ## Start TorchServe with the packaged model
+	@echo "Starting TorchServe with the model..."
+	@poetry run torchserve --start --model-store $(MODEL_STORE) --models $(MODEL_NAME)=$(MODEL_NAME).mar
+
+# Default model size is small (418M)
+download-model: download-model-small
+
+# Download specific model sizes
+download-model-small:
+	@poetry run python scripts/download_models.py --size 418M
+
+download-model-medium:
+	@poetry run python scripts/download_models.py --size 1.2B
+
+download-model-large:
+	@poetry run python scripts/download_models.py --size 12B
+
+# Clean up
+clean:
+	rm -rf babeltron/model/m2m100_*
+	rm -f babeltron/model/model_config.txt
+	find . -type d -name __pycache__ -exec rm -rf {} +
+	find . -type d -name .pytest_cache -exec rm -rf {} +

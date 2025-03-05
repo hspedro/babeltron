@@ -169,3 +169,34 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env/
+.venv/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+coverage.xml
+*.cover
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Babeltron specific
+babeltron/model/*
+!babeltron/model/__init__.py
+model_store/
+babeltron/model/model_config.txt
+
+# Logs
+*.log
