@@ -6,10 +6,6 @@ on:
       artifact-name:
         description: "Name of the artifact containing the built package"
         value: ${{ jobs.build.outputs.artifact-name }}
-  pull_request:
-    branches: [ main ]
-  push:
-    branches: [ main ]
 
 jobs:
   build:
@@ -35,20 +31,26 @@ jobs:
         poetry config virtualenvs.create true --local
         poetry config virtualenvs.in-project true --local
 
+    # Add caching for Poetry dependencies
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v3
+      with:
+        path: .venv
+        key: ${{ runner.os }}-poetry-3.9-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-poetry-3.9-
+
     - name: Install dependencies
       run: poetry install
 
     - name: Build package
       run: poetry build
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
       with:
         name: dist
         path: dist/
-        retention-days: 1
 
     - name: Check code quality
-      run: |
-        poetry run black --check babeltron/
-        poetry run isort --check-only babeltron/
+      run: make lint

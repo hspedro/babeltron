@@ -2,25 +2,28 @@ name: Tests
 
 on:
   workflow_call:
-  pull_request:
-    branches: [ main ]
-  push:
-    branches: [ main ]
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        default: '3.9'
+        type: string
+      upload-coverage:
+        description: 'Whether to upload coverage reports'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
-
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ inputs.python-version }}
 
     - name: Install Poetry
       uses: abatilo/actions-poetry@v4
@@ -32,17 +35,22 @@ jobs:
         poetry config virtualenvs.create true --local
         poetry config virtualenvs.in-project true --local
 
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v3
+      with:
+        path: .venv
+        key: ${{ runner.os }}-poetry-${{ inputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-poetry-${{ inputs.python-version }}-
+
     - name: Install dependencies
       run: poetry install
 
     - name: Run tests
       run: make test
 
-    - name: Check code quality
-      run: |
-        make lint
-
     - name: Upload coverage reports to Codecov
+      if: inputs.upload-coverage
       uses: codecov/codecov-action@v3
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
