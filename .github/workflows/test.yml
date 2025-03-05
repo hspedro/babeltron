@@ -36,12 +36,11 @@ jobs:
       run: poetry install
 
     - name: Run tests
-      run: poetry run pytest
+      run: make test
 
     - name: Check code quality
       run: |
-        poetry run black --check babeltron/
-        poetry run isort --check-only babeltron/
+        make lint
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3

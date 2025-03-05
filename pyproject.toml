@@ -6,6 +6,7 @@ authors = ["Pedro Soares <pedrofigueiredoc@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/hspedro/babeltron"
+packages = [{include = "babeltron"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -26,6 +27,7 @@ black = "^23.3.0"
 isort = "^5.12.0"
 flake8 = "^6.0.0"
 pytest-cov = "^4.1.0"
+httpx = "^0.27.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -38,3 +40,12 @@ target-version = ["py38"]
 [tool.isort]
 profile = "black"
 line_length = 88
+
+[tool.pytest]
+testpaths = ["tests/unit"]
+python_files = "test_*.py"
+python_functions = "test_*"
+
+[tool.coverage.run]
+source = ["babeltron"]
+omit = ["tests/*"]
