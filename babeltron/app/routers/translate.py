@@ -1,14 +1,19 @@
+import os
+
+import torch
 from fastapi import APIRouter, HTTPException, status
+from fastapi_cache.decorator import cache
 from pydantic import BaseModel, Field
 from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
-import os
-import torch
 
-from babeltron.app.utils import get_model_path
+from babeltron.app.utils import ORJsonCoder, cache_key_builder, get_model_path
 
 router = APIRouter(tags=["Translation"])
 
-MODEL_COMPRESSION_ENABLED = os.environ.get("MODEL_COMPRESSION_ENABLED", "true").lower() in ("true", "1", "yes")
+MODEL_COMPRESSION_ENABLED = os.environ.get(
+    "MODEL_COMPRESSION_ENABLED", "true"
+).lower() in ("true", "1", "yes")
+CACHE_TTL_SECONDS = int(os.environ.get("CACHE_TTL_SECONDS", "3600"))
 
 try:
     MODEL_PATH = get_model_path()
@@ -19,7 +24,7 @@ try:
     if MODEL_COMPRESSION_ENABLED and torch.cuda.is_available():
         print("Applying FP16 model compression")
         model = model.half()  # Convert to FP16 precision
-        model = model.to('cuda')  # Move to GPU
+        model = model.to("cuda")  # Move to GPU
     elif MODEL_COMPRESSION_ENABLED:
         print("FP16 compression enabled but GPU not available, using CPU")
     else:
@@ -71,6 +76,7 @@ class TranslationResponse(BaseModel):
     response_description="The translated text in the target language",
     status_code=status.HTTP_200_OK,
 )
+@cache(expire=CACHE_TTL_SECONDS, key_builder=cache_key_builder, coder=ORJsonCoder)
 async def translate(request: TranslationRequest):
     if model is None or tokenizer is None:
         raise HTTPException(
@@ -84,17 +90,19 @@ async def translate(request: TranslationRequest):
 
         # Move input to GPU if model is on GPU
         if torch.cuda.is_available() and next(model.parameters()).is_cuda:
-            encoded_text = {k: v.to('cuda') for k, v in encoded_text.items()}
+            encoded_text = {k: v.to("cuda") for k, v in encoded_text.items()}
 
         generated_tokens = model.generate(
             **encoded_text, forced_bos_token_id=tokenizer.get_lang_id(request.tgt_lang)
         )
-        translation = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
+        translation = tokenizer.batch_decode(
+            generated_tokens, skip_special_tokens=True
+        )[0]
         return {"translation": translation}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error during translation: {str(e)}"
+            detail=f"Error during translation: {str(e)}",
         )
 
 

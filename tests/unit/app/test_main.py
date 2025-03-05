@@ -1,8 +1,12 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock, AsyncMock
 
+import pytest
 from fastapi import FastAPI
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.inmemory import InMemoryBackend
+from fastapi_cache.backends.redis import RedisBackend
 
-from babeltron.app.main import app, __version__
+from babeltron.app.main import app, __version__, lifespan
 
 
 class TestMainApp:
@@ -23,3 +27,52 @@ class TestMainApp:
         # We can't directly verify that include_routers was called since it happens
         # during import, but we can check that the app has routes
         assert len(app.routes) > 0
+
+    @pytest.mark.asyncio
+    @patch.object(FastAPICache, "init")
+    @patch.dict("os.environ", {"CACHE_URL": ""})
+    async def test_lifespan_with_no_cache_url(self, mock_init):
+        mock_app = MagicMock()
+
+        async with lifespan(mock_app):
+            pass
+
+        mock_init.assert_called_once()
+        args, kwargs = mock_init.call_args
+        assert isinstance(args[0], InMemoryBackend)
+        assert kwargs.get("prefix") == "babeltron"
+
+    @pytest.mark.asyncio
+    @patch.object(FastAPICache, "init")
+    @patch("babeltron.app.main.aioredis")
+    @patch.dict("os.environ", {"CACHE_URL": "redis://localhost:6379"})
+    async def test_lifespan_with_redis_cache_url(self, mock_aioredis, mock_init):
+        mock_redis = AsyncMock()
+        mock_aioredis.from_url.return_value = mock_redis
+
+        mock_app = MagicMock()
+
+        async with lifespan(mock_app):
+            pass
+
+        mock_aioredis.from_url.assert_called_once_with("redis://localhost:6379")
+
+        mock_init.assert_called_once()
+        args, kwargs = mock_init.call_args
+        assert isinstance(args[0], RedisBackend)
+        assert kwargs.get("prefix") == "babeltron"
+
+    @pytest.mark.asyncio
+    @patch.object(FastAPICache, "init")
+    @patch.dict("os.environ", {"CACHE_URL": "other://localhost:1234"})
+    async def test_lifespan_with_unsupported_cache_url(self, mock_init):
+        mock_app = MagicMock()
+
+        async with lifespan(mock_app):
+            pass
+
+        mock_init.assert_not_called()
+
+    @patch("babeltron.app.main.aioredis")
+    def test_redis_import(self, mock_aioredis):
+        assert mock_aioredis is not None

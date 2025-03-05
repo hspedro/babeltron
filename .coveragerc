@@ -1,6 +1,6 @@
 [run]
 source = babeltron
-omit = 
+omit =
     */tests/*
     */test/*
     */venv/*
@@ -17,4 +17,4 @@ exclude_lines =
     raise ImportError
 
 [html]
-directory = htmlcov 
+directory = htmlcov

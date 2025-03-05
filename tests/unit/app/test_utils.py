@@ -1,10 +1,13 @@
+import pytest
+import hashlib
+import json
+
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.datastructures import URL
 
-import pytest
-from fastapi import FastAPI, APIRouter
-
-from babeltron.app.utils import get_model_path, include_routers
+from babeltron.app.utils import get_model_path, include_routers, cache_key_builder
 
 
 class TestGetModelPath:
@@ -248,3 +251,100 @@ class TestIncludeRouters:
         include_routers(app)
 
         mock_include_router.assert_called_once_with(mock_module.router)
+
+
+class TestCacheKeyBuilder:
+    def setup_method(self):
+        # Create a mock request
+        self.request = MagicMock(spec=Request)
+        self.request.method = "POST"
+        self.request.url = URL("http://testserver/translate")
+        self.request.query_params = {}
+        self.request.state = MagicMock()
+
+    def test_basic_key_generation(self):
+        # Test with empty body
+        self.request.state.body = "{}"
+
+        key = cache_key_builder(None, "test-namespace", request=self.request, __=None, ___=None)
+
+        expected_key = "test-namespace:::"
+        assert key == expected_key
+
+    def test_with_translation_data(self):
+        # Test with translation data in body
+        body_data = {
+            "src_lang": "en",
+            "dst_lang": "es",
+            "text": "Hello world"
+        }
+        self.request.state.body = json.dumps(body_data)
+
+        key = cache_key_builder(None, "translate", request=self.request, __=None, ___=None)
+
+        text_md5 = hashlib.md5("Hello world".encode()).hexdigest()
+        expected_key = f"translate:en:es:{text_md5}"
+        assert key == expected_key
+
+    def test_with_query_params(self):
+        # Test with query parameters
+        body_data = {
+            "src_lang": "fr",
+            "dst_lang": "de",
+            "text": "Bonjour"
+        }
+        self.request.state.body = json.dumps(body_data)
+        self.request.query_params = {"debug": "true", "format": "json"}
+
+        key = cache_key_builder(None, "api", request=self.request, __=None, ___=None)
+
+        text_md5 = hashlib.md5("Bonjour".encode()).hexdigest()
+        expected_key = f"api:fr:de:{text_md5}"
+        assert key == expected_key
+
+    def test_with_missing_body(self):
+        # Test when body is missing
+        self.request.state = MagicMock(spec=[])  # No body attribute
+
+        key = cache_key_builder(None, "test", request=self.request, __=None, ___=None)
+
+        expected_key = "test:::"
+        assert key == expected_key
+
+    def test_with_invalid_json(self):
+        # Test with invalid JSON in body
+        self.request.state.body = "not-valid-json"
+
+        key = cache_key_builder(None, "test", request=self.request, __=None, ___=None)
+
+        expected_key = "test:::"
+        assert key == expected_key
+
+    def test_with_empty_text(self):
+        # Test with empty text field
+        body_data = {
+            "src_lang": "en",
+            "dst_lang": "fr",
+            "text": ""
+        }
+        self.request.state.body = json.dumps(body_data)
+
+        key = cache_key_builder(None, "translate", request=self.request, __=None, ___=None)
+
+        expected_key = "translate:en:fr:"
+        assert key == expected_key
+
+    def test_with_missing_fields(self):
+        # Test with missing fields in body
+        body_data = {
+            "src_lang": "en",
+            # dst_lang is missing
+            "text": "Test"
+        }
+        self.request.state.body = json.dumps(body_data)
+
+        key = cache_key_builder(None, "translate", request=self.request, __=None, ___=None)
+
+        text_md5 = hashlib.md5("Test".encode()).hexdigest()
+        expected_key = f"translate:en::{text_md5}"
+        assert key == expected_key

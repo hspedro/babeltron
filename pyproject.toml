@@ -17,16 +17,18 @@ grpcio = "^1.54.0"
 grpcio-tools = "^1.54.0"
 fastapi = "^0.95.1"
 uvicorn = "^0.22.0"
-pytest-cov = "^4.1.0"
-nvidia-cuda-runtime-cu11 = "11.7.99"
+fastapi-cache2 = "^0.2.2"
+redis = "^5.2.1"
+orjson = "^3.10.15"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.3.1"
+pytest = "^8.2.0"
 black = "^23.3.0"
 isort = "^5.12.0"
 flake8 = "^6.0.0"
-pytest-cov = "^4.1.0"
 httpx = "^0.27.0"
+pytest-cov = "^4.1.0"
+pytest-asyncio = "^0.25.3"
 
 [build-system]
 requires = ["poetry-core"]
@@ -44,7 +46,20 @@ line_length = 88
 testpaths = ["tests/unit"]
 python_files = "test_*.py"
 python_functions = "test_*"
+asyncio_mode = "auto"
+markers = [
+    "asyncio: mark a test as an asyncio test",
+]
 
 [tool.coverage.run]
 source = ["babeltron"]
 omit = ["tests/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+python_files = "test_*.py"
+python_functions = "test_*"
+asyncio_mode = "auto"
+markers = [
+    "asyncio: mark a test as an asyncio test",
+]

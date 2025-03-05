@@ -52,5 +52,5 @@ jobs:
         name: dist
         path: dist/
 
-    - name: Check code quality
+    - name: Run linters
       run: make lint

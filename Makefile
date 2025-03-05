@@ -1,4 +1,4 @@
-.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-small download-model-medium download-model-large serve serve-prod docker-build docker-run docker-compose-up docker-compose-down
+.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-small download-model-medium download-model-large serve serve-prod docker-build docker-run docker-compose-up docker-compose-down pre-commit-install pre-commit-run
 
 # Define model path variable with default value, can be overridden by environment
 MODEL_PATH ?= ./models
@@ -131,3 +131,10 @@ docker-up: ## Build and start services with docker-compose
 docker-down:
 	@echo "Stopping docker-compose services..."
 	@docker-compose down
+
+pre-commit-install:
+	pip install pre-commit
+	pre-commit install
+
+pre-commit-run:
+	pre-commit run --all-files
