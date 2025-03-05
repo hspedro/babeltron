@@ -6,6 +6,7 @@ from fastapi_cache.decorator import cache
 from pydantic import BaseModel, Field
 from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
 
+from babeltron.app.monitoring import track_dynamic_translation_metrics
 from babeltron.app.utils import ORJsonCoder, cache_key_builder, get_model_path
 
 router = APIRouter(tags=["Translation"])
@@ -77,6 +78,7 @@ class TranslationResponse(BaseModel):
     status_code=status.HTTP_200_OK,
 )
 @cache(expire=CACHE_TTL_SECONDS, key_builder=cache_key_builder, coder=ORJsonCoder)
+@track_dynamic_translation_metrics()
 async def translate(request: TranslationRequest):
     if model is None or tokenizer is None:
         raise HTTPException(

@@ -37,6 +37,18 @@ class TestMainApp:
         async with lifespan(mock_app):
             pass
 
+        # No cache URL should not initialize any cache
+        mock_init.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch.object(FastAPICache, "init")
+    @patch.dict("os.environ", {"CACHE_URL": "in-memory"})
+    async def test_lifespan_with_inmemory_cache_url(self, mock_init):
+        mock_app = MagicMock()
+
+        async with lifespan(mock_app):
+            pass
+
         mock_init.assert_called_once()
         args, kwargs = mock_init.call_args
         assert isinstance(args[0], InMemoryBackend)
