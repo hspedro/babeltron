@@ -1,16 +1,30 @@
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
+import os
+import torch
 
 from babeltron.app.utils import get_model_path
 
 router = APIRouter(tags=["Translation"])
 
-# Load model and tokenizer
+MODEL_COMPRESSION_ENABLED = os.environ.get("MODEL_COMPRESSION_ENABLED", "true").lower() in ("true", "1", "yes")
+
 try:
     MODEL_PATH = get_model_path()
     print(f"Loading model from: {MODEL_PATH}")
     model = M2M100ForConditionalGeneration.from_pretrained(MODEL_PATH)
+
+    # Apply FP16 compression if enabled and supported
+    if MODEL_COMPRESSION_ENABLED and torch.cuda.is_available():
+        print("Applying FP16 model compression")
+        model = model.half()  # Convert to FP16 precision
+        model = model.to('cuda')  # Move to GPU
+    elif MODEL_COMPRESSION_ENABLED:
+        print("FP16 compression enabled but GPU not available, using CPU")
+    else:
+        print("Model compression disabled")
+
     tokenizer = M2M100Tokenizer.from_pretrained(MODEL_PATH)
     print("Model loaded successfully")
 except Exception as e:
@@ -64,13 +78,24 @@ async def translate(request: TranslationRequest):
             detail="Translation model not loaded. Please check server logs.",
         )
 
-    tokenizer.src_lang = request.src_lang
-    encoded_text = tokenizer(request.text, return_tensors="pt")
-    generated_tokens = model.generate(
-        **encoded_text, forced_bos_token_id=tokenizer.get_lang_id(request.tgt_lang)
-    )
-    translation = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
-    return {"translation": translation}
+    try:
+        tokenizer.src_lang = request.src_lang
+        encoded_text = tokenizer(request.text, return_tensors="pt")
+
+        # Move input to GPU if model is on GPU
+        if torch.cuda.is_available() and next(model.parameters()).is_cuda:
+            encoded_text = {k: v.to('cuda') for k, v in encoded_text.items()}
+
+        generated_tokens = model.generate(
+            **encoded_text, forced_bos_token_id=tokenizer.get_lang_id(request.tgt_lang)
+        )
+        translation = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
+        return {"translation": translation}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error during translation: {str(e)}"
+        )
 
 
 @router.get(

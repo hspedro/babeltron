@@ -29,9 +29,28 @@ RUN poetry install --without dev --no-interaction --no-ansi
 # Set environment variables
 ENV MODEL_PATH=/models
 ENV PYTHONPATH=/app
+ENV WORKERS=1
+ENV HOST=0.0.0.0
+ENV PORT=8000
+ENV MODEL_COMPRESSION_ENABLED=true
 
 # Expose the port the app runs on
 EXPOSE 8000
 
+# Create a script to start the application with the specified number of workers
+RUN echo '#!/bin/bash\n\
+echo "Starting with $WORKERS workers"\n\
+echo "Model compression: $MODEL_COMPRESSION_ENABLED"\n\
+if [ "$WORKERS" -eq "1" ]; then\n\
+  # Single worker mode uses uvicorn directly\n\
+  exec uvicorn babeltron.app.main:app --host $HOST --port $PORT\n\
+else\n\
+  # Multi-worker mode uses gunicorn with uvicorn workers\n\
+  exec gunicorn babeltron.app.main:app \\\n\
+    --workers $WORKERS \\\n\
+    --worker-class uvicorn.workers.UvicornWorker \\\n\
+    --bind $HOST:$PORT\n\
+fi' > /app/start.sh && chmod +x /app/start.sh
+
 # Command to run the application
-CMD ["uvicorn", "babeltron.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/start.sh"]
