@@ -1,6 +1,6 @@
 # Babel Tron
 
-[![Tests](https://github.com/hspedro/babeltron/actions/workflows/tests.yml/badge.svg)](https://github.com/hspedro/babeltron/actions/workflows/tests.yml)
+[![Tests](https://github.com/hspedro/babeltron/actions/workflows/test.yml/badge.svg)](https://github.com/hspedro/babeltron/actions/workflows/test.yml)
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/github/license/hspedro/babeltron)](https://github.com/hspedro/babeltron/blob/main/LICENSE)
 [![Version](https://img.shields.io/badge/version-0.2.0-green)](https://github.com/hspedro/babeltron/releases)
