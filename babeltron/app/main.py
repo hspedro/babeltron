@@ -1,4 +1,3 @@
-import logging
 import os
 from importlib.metadata import version
 
@@ -13,13 +12,7 @@ from babeltron.app.utils import include_routers
 try:
     __version__ = version("babeltron")
 except ImportError:
-    __version__ = "0.2.0-dev"
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] [%(trace_id)s %(span_id)s %(resource.service.name)s %(trace_sampled)s] - %(message)s",
-)
+    __version__ = "dev"
 
 
 def create_app() -> FastAPI:
@@ -38,7 +31,7 @@ def create_app() -> FastAPI:
 
         Where `<base64-encoded-credentials>` is the Base64 encoding of `username:password`.
         """,
-        version="0.2.0",
+        version=__version__,
         contact={
             "name": "Pedro Soares",
             "url": "https://github.com/hspedro",
@@ -53,13 +46,12 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
-    # Configure CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Allows all origins
+        allow_origins=["*"],
         allow_credentials=True,
-        allow_methods=["*"],  # Allows all methods
-        allow_headers=["*"],  # Allows all headers
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     if (api_username := os.environ.get("API_USERNAME")) and (
@@ -94,7 +86,6 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-# Add metrics endpoint
 @app.get("/metrics", include_in_schema=False)
 async def metrics():
     return Response(content=metrics_endpoint(), media_type="text/plain")

@@ -11,12 +11,10 @@ from babeltron.app.models.base import TranslationModelBase
 
 
 def get_model_path() -> str:
-    """Get the path to the model directory from environment or default locations"""
     env_path = os.getenv("MODEL_PATH")
     if env_path:
         return env_path
 
-    # Get the directory from the current file
     current_file = Path(__file__)
     project_root = current_file.parent.parent.parent.parent
 
@@ -34,8 +32,6 @@ def get_model_path() -> str:
 
 
 class ModelArchitecture:
-    """Enum-like class for model architecture types"""
-
     CUDA_FP16 = "cuda_fp16"
     CPU_QUANTIZED = "cpu_quantized"
     CPU_COMPILED = "cpu_compiled"
@@ -48,7 +44,6 @@ class M2MTranslationModel(TranslationModelBase):
     _instance = None  # Singleton instance
 
     def __new__(cls):
-        """Implement singleton pattern"""
         if cls._instance is None:
             cls._instance = super(M2MTranslationModel, cls).__new__(cls)
             cls._instance._initialized = False
@@ -179,11 +174,9 @@ class M2MTranslationModel(TranslationModelBase):
         """Translate using CUDA-optimized model"""
         start_time = time.time()
 
-        # Create spans if tracer is provided
         tokenize_span = inference_span = decode_span = None
 
         try:
-            # Tokenization
             if tracer:
                 with tracer.start_as_current_span("tokenization") as span:
                     tokenize_span = span
@@ -198,10 +191,8 @@ class M2MTranslationModel(TranslationModelBase):
             else:
                 encoded_text = self._tokenizer(text, return_tensors="pt")
 
-            # Move to GPU
             encoded_text = {k: v.to("cuda") for k, v in encoded_text.items()}
 
-            # Model inference
             if tracer:
                 with tracer.start_as_current_span("model_inference") as span:
                     inference_span = span
@@ -224,7 +215,6 @@ class M2MTranslationModel(TranslationModelBase):
                     forced_bos_token_id=self._tokenizer.get_lang_id(tgt_lang),
                 )
 
-            # Decoding
             if tracer:
                 with tracer.start_as_current_span("decoding") as span:
                     decode_span = span
@@ -258,7 +248,6 @@ class M2MTranslationModel(TranslationModelBase):
         start_time = time.time()
 
         try:
-            # Tokenization
             tokenize_start = time.time()
             encoded_text = self._tokenizer(text, return_tensors="pt")
             tokenize_time = time.time() - tokenize_start
@@ -270,7 +259,6 @@ class M2MTranslationModel(TranslationModelBase):
                     )
                     span.set_attribute("duration_ms", tokenize_time * 1000)
 
-            # Model inference
             inference_start = time.time()
             if tracer:
                 with tracer.start_as_current_span("model_inference") as span:
@@ -289,7 +277,6 @@ class M2MTranslationModel(TranslationModelBase):
                     forced_bos_token_id=self._tokenizer.get_lang_id(tgt_lang),
                 )
 
-            # Decoding
             decode_start = time.time()
             if tracer:
                 with tracer.start_as_current_span("decoding") as span:
@@ -320,10 +307,8 @@ class M2MTranslationModel(TranslationModelBase):
         if self._tokenizer is None:
             raise ValueError("Model not loaded. Please check logs for errors.")
 
-        # Get language codes from the tokenizer
         lang_codes = self._tokenizer.lang_code_to_id
 
-        # Return list of language codes
         return list(lang_codes.keys())
 
     @property

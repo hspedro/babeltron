@@ -47,7 +47,6 @@ class TestMonitoring:
 
         assert response == mock_response
         call_next.assert_called_once_with(mock_request)
-        # Check that metrics were recorded
 
     @pytest.mark.asyncio
     async def test_prometheus_middleware_error_status(self, mock_request, mock_error_response):
@@ -58,7 +57,6 @@ class TestMonitoring:
 
         assert response == mock_error_response
         call_next.assert_called_once_with(mock_request)
-        # Check that error metrics were recorded
 
     @pytest.mark.asyncio
     async def test_prometheus_middleware_exception(self, mock_request):
@@ -70,11 +68,9 @@ class TestMonitoring:
             await middleware.dispatch(mock_request, call_next)
 
         call_next.assert_called_once_with(mock_request)
-        # Check that exception metrics were recorded
 
     @pytest.mark.asyncio
     async def test_track_dynamic_translation_metrics_with_request_arg(self):
-        # Test with request as first positional argument
         mock_request = MagicMock()
         mock_request.src_lang = "en"
         mock_request.tgt_lang = "fr"
@@ -86,11 +82,9 @@ class TestMonitoring:
         result = await test_func(mock_request)
 
         assert result == "result"
-        # Check that translation metrics were recorded
 
     @pytest.mark.asyncio
     async def test_track_dynamic_translation_metrics_with_request_kwarg(self):
-        # Test with request as keyword argument
         mock_request = MagicMock()
         mock_request.src_lang = "en"
         mock_request.tgt_lang = "fr"
@@ -102,15 +96,12 @@ class TestMonitoring:
         result = await test_func("some_value", request=mock_request)
 
         assert result == "result"
-        # Check that translation metrics were recorded
 
     def test_metrics_endpoint(self):
         result = metrics_endpoint()
         assert isinstance(result, bytes)
-        # The result should be a byte string of Prometheus metrics
 
     def test_registry_metrics(self):
-        # Test that all metrics are properly registered
         assert isinstance(REQUEST_COUNT, Counter)
         assert isinstance(REQUEST_LATENCY, Histogram)
         assert isinstance(ERROR_COUNT, Counter)
@@ -122,17 +113,12 @@ class TestMonitoring:
 
     @patch('time.time')
     def test_translation_latency_observe(self, mock_time):
-        # Test that translation latency is observed correctly
-        mock_time.side_effect = [100.0, 105.0]  # Start time, end time
+        mock_time.side_effect = [100.0, 105.0]
 
         with TRANSLATION_LATENCY.labels(src_lang="en", tgt_lang="fr").time():
             pass
 
-        # The time difference should be 5.0 seconds
-        # This is implicitly tested by the context manager
-
     def test_translation_count_inc(self):
-        # Test that translation count is incremented correctly
         before = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr")._value.get()
         TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr").inc()
         after = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr")._value.get()

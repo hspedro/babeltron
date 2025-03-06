@@ -25,12 +25,17 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY --from=builder /app/babeltron ./babeltron
 
+# Copy and set permissions on the entrypoint script BEFORE changing user
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 ENV PYTHONPATH=/app
 ENV MODEL_PATH=/models
 
-# Create a non-root user
+# Create a non-root user and switch to it
 RUN useradd -m appuser
 USER appuser
 
 EXPOSE 8000
-CMD ["uvicorn", "babeltron.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

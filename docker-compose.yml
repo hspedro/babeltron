@@ -16,6 +16,7 @@ services:
       - OTEL_SERVICE_NAME=babeltron
       - OTLP_GRPC_ENDPOINT=otel-collector:4317
       - API_PASSWORD=translation2025
+      - WORKER_COUNT=2
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]

@@ -2,6 +2,13 @@ name: Publish Docker image
 
 on:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      image_tag:
+        description: 'Custom tag for the Docker image'
+        required: false
+        type: string
+        default: 'latest'
 
 jobs:
   push_to_registry:
@@ -34,7 +41,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
-            latest
+            ${{ inputs.image_tag != '' && inputs.image_tag || 'latest' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5

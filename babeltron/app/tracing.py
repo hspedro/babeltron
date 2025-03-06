@@ -3,10 +3,8 @@ import os
 
 from fastapi import FastAPI
 
-# Check if we're in a test environment
 IN_TEST = os.environ.get("PYTEST_CURRENT_TEST") is not None
 
-# Only import OpenTelemetry if we're not in a test environment
 if not IN_TEST:
     from opentelemetry import trace
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
@@ -57,7 +55,6 @@ def setup_jaeger(app: FastAPI, log_correlation: bool = True) -> None:
         logging.info("Skipping OpenTelemetry setup in test environment")
         return
 
-    # Check if tracing is disabled
     if OTLP_GRPC_ENDPOINT.lower() == "disabled":
         logging.info("OpenTelemetry tracing is disabled")
         return
@@ -66,19 +63,19 @@ def setup_jaeger(app: FastAPI, log_correlation: bool = True) -> None:
     trace.set_tracer_provider(tracer)
 
     if OTLP_MODE == "otlp-grpc":
-        if not IN_TEST:  # Extra check to be safe
+        if not IN_TEST:
             tracer.add_span_processor(
                 BatchSpanProcessor(
                     OTLPSpanExporterGRPC(endpoint=OTLP_GRPC_ENDPOINT, insecure=True)
                 )
             )
     elif OTLP_MODE == "otlp-http":
-        if not IN_TEST:  # Extra check to be safe
+        if not IN_TEST:
             tracer.add_span_processor(
                 BatchSpanProcessor(OTLPSpanExporterHTTP(endpoint=OTLP_HTTP_ENDPOINT))
             )
     else:
-        if not IN_TEST:  # Extra check to be safe
+        if not IN_TEST:
             tracer.add_span_processor(
                 BatchSpanProcessor(
                     OTLPSpanExporterGRPC(endpoint=OTLP_GRPC_ENDPOINT, insecure=True)

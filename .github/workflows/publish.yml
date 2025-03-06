@@ -3,6 +3,7 @@ name: Publish Package
 on:
   release:
     types: [created]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,6 +19,9 @@ jobs:
   publish-docker:
     needs: [build, test]
     uses: ./.github/workflows/publish-docker.yml
+    with:
+      image_tag: ${{ github.event_name == 'release' && github.ref_name || 'latest' }}
+    secrets: inherit
 
   publish-pypi:
     needs: [build, test]
