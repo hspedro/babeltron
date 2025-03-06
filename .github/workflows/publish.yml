@@ -12,10 +12,14 @@ jobs:
     needs: build
     uses: ./.github/workflows/test.yml
     with:
-      python-version: '3.9'
+      python-version: '3.10'
       upload-coverage: true
 
-  publish:
+  publish-docker:
+    needs: [build, test]
+    uses: ./.github/workflows/publish-docker.yml
+
+  publish-pypi:
     needs: [build, test]
     runs-on: ubuntu-latest
     steps:
