@@ -1,56 +1,36 @@
-# Base image with Python
-FROM python:3.10-slim AS base
+# Build stage
+FROM python:3.10-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install a specific version of Poetry that supports --no-dev
+RUN pip install poetry==2.1.1
 
-# Install Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 - && \
-    ln -s /root/.local/bin/poetry /usr/local/bin/
+# Copy project files
+COPY pyproject.toml poetry.lock* README.md ./
+COPY babeltron ./babeltron
 
-# Copy Poetry configuration files
-COPY README.md pyproject.toml poetry.lock* ./
+# Configure poetry to not use a virtual environment
+RUN poetry config virtualenvs.create false \
+    && poetry install --without dev --no-interaction --no-ansi
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Copy Python dependencies from builder stage
+COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
-COPY babeltron/ ./babeltron/
+COPY --from=builder /app/babeltron ./babeltron
 
-# Configure Poetry to not use virtualenvs in Docker
-RUN poetry config virtualenvs.create false
-
-# Install dependencies
-RUN poetry install --without dev --no-interaction --no-ansi
-
-# Set environment variables
-ENV MODEL_PATH=/models
 ENV PYTHONPATH=/app
-ENV WORKERS=1
-ENV HOST=0.0.0.0
-ENV PORT=8000
-ENV MODEL_COMPRESSION_ENABLED=true
+ENV MODEL_PATH=/models
 
-# Expose the port the app runs on
+# Create a non-root user
+RUN useradd -m appuser
+USER appuser
+
 EXPOSE 8000
-
-# Create a script to start the application with the specified number of workers
-RUN echo '#!/bin/bash\n\
-echo "Starting with $WORKERS workers"\n\
-echo "Model compression: $MODEL_COMPRESSION_ENABLED"\n\
-if [ "$WORKERS" -eq "1" ]; then\n\
-  # Single worker mode uses uvicorn directly\n\
-  exec uvicorn babeltron.app.main:app --host $HOST --port $PORT\n\
-else\n\
-  # Multi-worker mode uses gunicorn with uvicorn workers\n\
-  exec gunicorn babeltron.app.main:app \\\n\
-    --workers $WORKERS \\\n\
-    --worker-class uvicorn.workers.UvicornWorker \\\n\
-    --bind $HOST:$PORT\n\
-fi' > /app/start.sh && chmod +x /app/start.sh
-
-# Command to run the application
-CMD ["/app/start.sh"]
+CMD ["uvicorn", "babeltron.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

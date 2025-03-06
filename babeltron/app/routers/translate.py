@@ -80,9 +80,7 @@ class TranslationResponse(BaseModel):
 )
 @track_dynamic_translation_metrics()
 async def translate(request: TranslationRequest):
-    # Get current span from context
     current_span = trace.get_current_span()
-    # Add request attributes to the current span
     current_span.set_attribute("src_lang", request.src_lang)
     current_span.set_attribute("tgt_lang", request.tgt_lang)
     current_span.set_attribute("text_length", len(request.text))
