@@ -5,14 +5,18 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from babeltron.app.main import __version__
-from babeltron.app.routers.translate import model, tokenizer
+from babeltron.app.models.factory import ModelFactory
 
 router = APIRouter()
+
+# Get the default translation model
+translation_model = ModelFactory.get_model()
 
 
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
+    model_architecture: Optional[str] = None
     version: Optional[str] = None
 
 
@@ -24,13 +28,21 @@ class HealthResponse(BaseModel):
     tags=["Control"],
 )
 async def healthcheck():
-    return {"status": "ok", "model_loaded": model is not None, "version": __version__}
+    return {
+        "status": "ok",
+        "model_loaded": translation_model.is_loaded,
+        "model_architecture": translation_model.architecture
+        if translation_model.is_loaded
+        else None,
+        "version": __version__,
+    }
 
 
 class ReadinessResponse(BaseModel):
     status: str
     version: Optional[str] = None
     error: Optional[str] = None
+    model_architecture: Optional[str] = None
 
 
 @router.get(
@@ -42,22 +54,34 @@ class ReadinessResponse(BaseModel):
 )
 async def readiness():
     try:
-        if model is None or tokenizer is None:
+        if not translation_model.is_loaded:
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 content={
                     "status": "not ready",
-                    "error": "Model or tokenizer not loaded",
+                    "error": "Model not loaded",
                     "version": __version__,
                 },
             )
 
+        # Test a simple translation to verify the model is working
         test_sentence = "hello"
-        tokenizer.src_lang = "en"
-        encoded_text = tokenizer(test_sentence, return_tensors="pt")
-        _ = model.generate(**encoded_text)
-
-        return {"status": "ready", "version": __version__}
+        try:
+            _ = translation_model.translate(test_sentence, "en", "fr")
+            return {
+                "status": "ready",
+                "version": __version__,
+                "model_architecture": translation_model.architecture,
+            }
+        except Exception as e:
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={
+                    "status": "not ready",
+                    "error": f"Model test failed: {str(e)}",
+                    "version": __version__,
+                },
+            )
     except Exception as e:
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

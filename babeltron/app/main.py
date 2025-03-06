@@ -1,3 +1,4 @@
+import logging
 import os
 from importlib.metadata import version
 
@@ -12,7 +13,13 @@ from babeltron.app.utils import include_routers
 try:
     __version__ = version("babeltron")
 except ImportError:
-    __version__ = "0.1.0-dev"
+    __version__ = "0.2.0-dev"
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] [%(trace_id)s %(span_id)s %(resource.service.name)s %(trace_sampled)s] - %(message)s",
+)
 
 
 def create_app() -> FastAPI:
@@ -31,7 +38,7 @@ def create_app() -> FastAPI:
 
         Where `<base64-encoded-credentials>` is the Base64 encoding of `username:password`.
         """,
-        version="0.1.0",
+        version="0.2.0",
         contact={
             "name": "Pedro Soares",
             "url": "https://github.com/hspedro",
