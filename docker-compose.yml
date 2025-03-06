@@ -11,8 +11,10 @@ services:
       - ./models:/models
     environment:
       - MODEL_PATH=/models
-      - CACHE_URL=in-memory
       - METRICS_ENABLED=true
+      - OTLP_MODE=otlp-grpc
+      - OTEL_SERVICE_NAME=babeltron
+      - OTLP_GRPC_ENDPOINT=otel-collector:4317
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
@@ -48,6 +50,59 @@ services:
       - grafana-storage:/var/lib/grafana
     depends_on:
       - prometheus
+
+  jaeger-collector:
+    container_name: jaeger-collector
+    image: jaegertracing/jaeger-collector:1.57.0
+    command:
+      - "--cassandra.keyspace=jaeger_v1_dc1"
+      - "--cassandra.servers=cassandra"
+      - "--collector.otlp.enabled=true"
+    environment:
+      - SAMPLING_CONFIG_TYPE=adaptive
+    ports:
+      - "4317" # accept OpenTelemetry Protocol (OTLP) over gRPC
+      - "4318" # accept OpenTelemetry Protocol (OTLP) over HTTP
+    restart: on-failure
+    depends_on:
+      - cassandra-schema
+
+  cassandra:
+    container_name: cassandra
+    image: cassandra:4.1.4
+
+  cassandra-schema:
+    container_name: cassandra-schema
+    image: jaegertracing/jaeger-cassandra-schema:1.57.0
+    depends_on:
+      - cassandra
+
+  jaeger-query:
+    container_name: jaeger-query
+    image: jaegertracing/jaeger-query:1.57.0
+    command:
+      - "--cassandra.keyspace=jaeger_v1_dc1"
+      - "--cassandra.servers=cassandra"
+    ports:
+      - "16686:16686"
+      - "16687:16687"
+    restart: on-failure
+    depends_on:
+      - cassandra-schema
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.100.0
+    container_name: otel-collector
+    command:
+      - "--config=/conf/config.yaml"
+    volumes:
+      - ./etc/otel-collector-config.yaml:/conf/config.yaml
+    ports:
+      - "4317" # OTLP gRPC receiver
+      - "4318" # OTLP http receiver
+    restart: on-failure
+    depends_on:
+      - jaeger-collector
 
 volumes:
   grafana-storage:

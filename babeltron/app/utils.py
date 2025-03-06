@@ -1,15 +1,9 @@
-import hashlib
 import importlib
-import json
 import os
 import pkgutil
 from pathlib import Path
-from typing import Any
 
-import orjson
-from fastapi import FastAPI, Request, Response
-from fastapi.encoders import jsonable_encoder
-from fastapi_cache import Coder
+from fastapi import FastAPI
 
 
 def get_model_path() -> str:
@@ -42,51 +36,3 @@ def include_routers(app: FastAPI):
         module = importlib.import_module(f"{routers_package}.{module_name}")
         if hasattr(module, "router"):
             app.include_router(module.router)
-
-
-def cache_key_builder(
-    func,
-    namespace: str = "",
-    request: Request = None,
-    response: Response = None,
-    *args,
-    **kwargs,
-) -> str:
-    if request is None:
-        return ""
-
-    body_data = {}
-    if hasattr(request, "state") and hasattr(request.state, "body"):
-        try:
-            body_data = json.loads(request.state.body)
-        except (json.JSONDecodeError, AttributeError):
-            pass
-
-    src_lang = body_data.get("src_lang", "")
-    dst_lang = body_data.get("dst_lang", "")
-    text = body_data.get("text", "")
-
-    text_md5 = hashlib.md5(text.encode()).hexdigest() if text else ""
-
-    return ":".join(
-        [
-            namespace,
-            src_lang,
-            dst_lang,
-            text_md5,
-        ]
-    )
-
-
-class ORJsonCoder(Coder):
-    @classmethod
-    def encode(cls, value: Any) -> bytes:
-        return orjson.dumps(
-            value,
-            default=jsonable_encoder,
-            option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY,
-        )
-
-    @classmethod
-    def decode(cls, value: bytes) -> Any:
-        return orjson.loads(value)
