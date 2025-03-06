@@ -169,6 +169,48 @@ The Docker setup mounts the local `./models` directory to `/models` inside the c
 
 If no models are found when starting the container, you'll be prompted to download the small model automatically.
 
+## Distributed Tracing
+
+Babeltron supports distributed tracing with OpenTelemetry and Jaeger. The application is configured to send traces to the OpenTelemetry Collector, which forwards them to Jaeger.
+
+### Configuration
+
+Tracing can be configured using the following environment variables:
+
+- `OTLP_MODE`: The OpenTelemetry protocol mode (`otlp-grpc` or `otlp-http`)
+- `OTEL_SERVICE_NAME`: The name of the service in traces (default: `babeltron`)
+- `OTLP_GRPC_ENDPOINT`: The endpoint for the OpenTelemetry Collector using gRPC (default: `otel-collector:4317`)
+- `OTLP_HTTP_ENDPOINT`: The endpoint for the OpenTelemetry Collector using HTTP (default: `http://otel-collector:4318/v1/traces`)
+
+### Accessing Jaeger UI
+
+When running with Docker Compose, you can access the Jaeger UI at:
+
+```
+http://localhost:16686
+```
+
+### Tracing Features
+
+The distributed tracing implementation provides insights into:
+
+- Request flow through the API
+- Detailed timing of translation steps:
+  - Tokenization
+  - Model inference
+  - Decoding
+- Error details and context
+- Cross-service communication
+
+### Disabling Tracing
+
+To disable tracing, set the `OTLP_GRPC_ENDPOINT` environment variable to `disabled`:
+
+```yaml
+environment:
+  - OTLP_GRPC_ENDPOINT=disabled
+```
+
 ## Contributing
 
 Install pre-commit hooks with `make pre-commit-install` and refer to the [CONTRIBUTING.md](docs/CONTRIBUTING.md) file for more information.

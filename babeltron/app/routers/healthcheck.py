@@ -16,7 +16,6 @@ class HealthResponse(BaseModel):
     version: Optional[str] = None
 
 
-@router.get("/healthcheck", summary="Healthcheck")
 @router.get(
     "/healthz",
     summary="Check API health",
@@ -34,7 +33,6 @@ class ReadinessResponse(BaseModel):
     error: Optional[str] = None
 
 
-@router.get("/readiness", summary="Readiness Probe")
 @router.get(
     "/readyz",
     summary="Check API Readiness",
