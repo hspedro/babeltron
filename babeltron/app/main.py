@@ -1,8 +1,10 @@
+import os
 from importlib.metadata import version
 
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from babeltron.app.middlewares.auth import BasicAuthMiddleware
 from babeltron.app.monitoring import PrometheusMiddleware, metrics_endpoint
 from babeltron.app.tracing import setup_jaeger
 from babeltron.app.utils import include_routers
@@ -13,41 +15,76 @@ except ImportError:
     __version__ = "0.1.0-dev"
 
 
-app = FastAPI(
-    title="Babeltron Translation API",
-    description="API for machine translation using NLLB models",
-    version="0.1.0",
-    contact={
-        "name": "Pedro Soares",
-        "url": "https://github.com/hspedro",
-        "email": "pedrofigueiredoc@gmail.com",
-    },
-    license_info={
-        "name": "MIT",
-        "url": "https://opensource.org/licenses/MIT",
-    },
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
-)
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="Babeltron Translation API",
+        description="""
+        A multilingual translation API.
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
-)
+        ## Authentication
 
-# Set up Jaeger tracing
-setup_jaeger(app)
+        This API uses Basic Authentication. Include an Authorization header with your requests:
 
-# Include all routers
-include_routers(app)
+        ```
+        Authorization: Basic <base64-encoded-credentials>
+        ```
 
-# Add Prometheus middleware
-app.add_middleware(PrometheusMiddleware)
+        Where `<base64-encoded-credentials>` is the Base64 encoding of `username:password`.
+        """,
+        version="0.1.0",
+        contact={
+            "name": "Pedro Soares",
+            "url": "https://github.com/hspedro",
+            "email": "pedrofigueiredoc@gmail.com",
+        },
+        license_info={
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT",
+        },
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+    )
+
+    # Configure CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # Allows all origins
+        allow_credentials=True,
+        allow_methods=["*"],  # Allows all methods
+        allow_headers=["*"],  # Allows all headers
+    )
+
+    if (api_username := os.environ.get("API_USERNAME")) and (
+        api_password := os.environ.get("API_PASSWORD")
+    ):
+        app.add_middleware(
+            BasicAuthMiddleware,
+            username=api_username,
+            password=api_password,
+            exclude_paths=[
+                "/docs",
+                "/redoc",
+                "/openapi.json",
+                "/healthz",
+                "/readyz",
+                "/metrics",
+            ],
+        )
+
+    # Set up Jaeger tracing
+    setup_jaeger(app)
+
+    # Include all routers
+    include_routers(app)
+
+    # Add Prometheus middleware
+    app.add_middleware(PrometheusMiddleware)
+
+    return app
+
+
+app = create_app()
 
 
 # Add metrics endpoint

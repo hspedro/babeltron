@@ -211,6 +211,67 @@ environment:
   - OTLP_GRPC_ENDPOINT=disabled
 ```
 
+## Authentication
+
+Babeltron supports HTTP Basic Authentication to secure API endpoints. When enabled, all API endpoints (except for health checks, metrics, and documentation) require authentication.
+
+
+### Enabling Authentication
+
+Basic authentication is enabled by setting both environment variables:
+
+```bash
+API_USERNAME=your_username
+API_PASSWORD=your_password
+```
+
+If either variable is not set, authentication will be disabled.
+
+### Using Authentication
+
+When authentication is enabled, clients must include an HTTP Basic Authentication header with each request:
+
+```
+Authorization: Basic <base64-encoded-credentials>
+```
+
+Where `<base64-encoded-credentials>` is the Base64 encoding of `username:password`.
+
+#### Example with curl
+
+```bash
+# Replace 'your_username' and 'your_password' with your credentials
+curl -X POST "http://localhost:8000/translate" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Basic $(echo -n 'your_username:your_password' | base64)" \
+  -d '{"text": "Hello world", "src_lang": "en", "tgt_lang": "fr"}'
+```
+
+or
+
+```bash
+# Replace 'your_username' and 'your_password' with your credentials
+curl -X POST "http://localhost:8000/translate" \
+  -H "Content-Type: application/json" \
+  -u "your_username:your_password" \
+  -d '{
+    "text": "Hello world",
+    "src_lang": "en",
+    "tgt_lang": "fr"
+  }'
+```
+
+### Excluded Paths
+
+The following paths are excluded from authentication requirements:
+
+- `/docs` - Swagger UI documentation
+- `/redoc` - ReDoc documentation
+- `/openapi.json` - OpenAPI schema
+- `/healthz` - Health check endpoint
+- `/readyz` - Readiness check endpoint
+- `/metrics` - Prometheus metrics endpoint
+
 ## Contributing
 
 Install pre-commit hooks with `make pre-commit-install` and refer to the [CONTRIBUTING.md](docs/CONTRIBUTING.md) file for more information.
