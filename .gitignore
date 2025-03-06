@@ -172,3 +172,15 @@ cython_debug/
 
 # Models
 models/*
+
+# Onnx models
+onnx__*
+*.bias
+*.onnx
+*_model_model_encoder_embed_positions_*
+*_model_model_encoder_layer_*
+*_model_model_decoder_embed_positions_*
+*_model_model_decoder_layer_*
+*_model_model_final_layer_norm_*
+*_model_model_final_layer_norm_*
+model.model.shared.weight

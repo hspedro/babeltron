@@ -1,46 +1,70 @@
 import os
 import sys
 import pytest
-from unittest.mock import patch, MagicMock
-import warnings
+from unittest.mock import MagicMock
+# Import our mock module
+from tests.mocks.opentelemetry import (
+    trace as mock_trace,
+    MockOTLPSpanExporterGRPC,
+    MockOTLPSpanExporterHTTP,
+    MockBatchSpanProcessor,
+)
 
-# Add the mock directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "mocks"))
-
-mock_span = MagicMock()
-mock_span.set_attribute.return_value = mock_span
-mock_span.add_event.return_value = mock_span
-mock_span.record_exception.return_value = mock_span
-mock_span.set_status.return_value = mock_span
-
-mock_tracer = MagicMock()
-mock_tracer.start_span.return_value = mock_span
-mock_tracer.start_as_current_span.return_value = mock_span
-
-mock_trace = MagicMock()
-mock_trace.get_tracer.return_value = mock_tracer
-mock_trace.get_current_span.return_value = mock_span
+# Set environment variables to disable telemetry for tests
+os.environ["OTLP_GRPC_ENDPOINT"] = "disabled"
 
 
-@pytest.fixture(scope="session", autouse=True)
+class MockOpenTelemetry:
+    def __getattr__(self, name):
+        if name == "trace":
+            return mock_trace
+        return MagicMock()
+
+
+@pytest.fixture(autouse=True, scope="session")
 def mock_opentelemetry():
-    patches = [
-        patch("opentelemetry.trace.get_tracer", return_value=mock_tracer),
-        patch("opentelemetry.trace.get_current_span", return_value=mock_span),
-        patch("babeltron.app.tracing.setup_jaeger"),
-    ]
+    # Replace the entire opentelemetry module with our mock
+    sys.modules["opentelemetry"] = MockOpenTelemetry()
+    sys.modules["opentelemetry.trace"] = mock_trace
 
-    # Apply all patches
-    for p in patches:
-        p.start()
+    # Also mock any submodules that might be imported directly
+    sys.modules["opentelemetry.sdk"] = MagicMock()
+    sys.modules["opentelemetry.sdk.trace"] = MagicMock()
+    sys.modules["opentelemetry.instrumentation"] = MagicMock()
+    sys.modules["opentelemetry.instrumentation.fastapi"] = MagicMock()
+    sys.modules["opentelemetry.instrumentation.logging"] = MagicMock()
 
-    os.environ["OTLP_GRPC_ENDPOINT"] = "disabled"
+    # Mock the exporters
+    sys.modules["opentelemetry.exporter.otlp.proto.grpc.trace_exporter"] = MagicMock()
+    sys.modules["opentelemetry.exporter.otlp.proto.grpc.trace_exporter"].OTLPSpanExporter = MockOTLPSpanExporterGRPC
 
+    sys.modules["opentelemetry.exporter.otlp.proto.http.trace_exporter"] = MagicMock()
+    sys.modules["opentelemetry.exporter.otlp.proto.http.trace_exporter"].OTLPSpanExporter = MockOTLPSpanExporterHTTP
+
+    sys.modules["opentelemetry.sdk.trace.export"] = MagicMock()
+    sys.modules["opentelemetry.sdk.trace.export"].BatchSpanProcessor = MockBatchSpanProcessor
+
+    # Yield to allow tests to run
     yield
 
-    # Remove patches
-    for p in patches:
-        p.stop()
+    # Clean up (optional, as pytest will terminate after tests)
+    if "opentelemetry" in sys.modules:
+        del sys.modules["opentelemetry"]
+    if "opentelemetry.trace" in sys.modules:
+        del sys.modules["opentelemetry.trace"]
+
+
+# Reset any singleton models between tests
+@pytest.fixture(autouse=True)
+def reset_singletons():
+    # Import here to avoid circular imports
+    from babeltron.app.models.m2m import M2MTranslationModel
+
+    # Reset the singleton instance
+    if hasattr(M2MTranslationModel, "_instance"):
+        M2MTranslationModel._instance = None
+
+    yield
 
 
 @pytest.fixture
@@ -49,8 +73,8 @@ def memory_tracer():
     yield None
 
 
-# Filter out the pkg_resources deprecation warning
 @pytest.fixture(scope="session", autouse=True)
 def filter_deprecation_warnings():
+    import warnings
     warnings.filterwarnings("ignore", message="pkg_resources is deprecated as an API")
     yield
