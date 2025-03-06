@@ -1,6 +1,6 @@
 [project]
 name = "babeltron"
-version = "0.3.0"
+version = "0.3.1"
 dynamic = ["version"]
 description = "A Python-based REST API that leverages single multilingual models like mBERT to provide efficient text translation services"
 authors = [
