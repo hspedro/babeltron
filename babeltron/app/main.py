@@ -12,7 +12,7 @@ from babeltron.app.utils import include_routers
 try:
     __version__ = version("babeltron")
 except ImportError:
-    __version__ = "0.2.0-dev"
+    __version__ = "dev"
 
 
 def create_app() -> FastAPI:
@@ -31,7 +31,7 @@ def create_app() -> FastAPI:
 
         Where `<base64-encoded-credentials>` is the Base64 encoding of `username:password`.
         """,
-        version="0.2.0",
+        version=__version__,
         contact={
             "name": "Pedro Soares",
             "url": "https://github.com/hspedro",
