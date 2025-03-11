@@ -1,6 +1,7 @@
 import os
 import sys
 import pytest
+import warnings
 from unittest.mock import MagicMock
 # Import our mock module
 from tests.mocks.opentelemetry import (
@@ -12,6 +13,8 @@ from tests.mocks.opentelemetry import (
 
 # Set environment variables to disable telemetry for tests
 os.environ["OTLP_GRPC_ENDPOINT"] = "disabled"
+os.environ["OTLP_MODE"] = "disabled"  # Disable actual tracing in tests
+os.environ["JAEGER_AGENT_HOST"] = "localhost"  # Use localhost for Jaeger agent
 
 
 class MockOpenTelemetry:
@@ -19,6 +22,20 @@ class MockOpenTelemetry:
         if name == "trace":
             return mock_trace
         return MagicMock()
+
+
+# Create a mock Jaeger exporter
+class MockJaegerExporter:
+    def __init__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+
+    def export(self, spans):
+        # Just return success without actually exporting
+        return True
+
+    def shutdown(self):
+        pass
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -41,8 +58,14 @@ def mock_opentelemetry():
     sys.modules["opentelemetry.exporter.otlp.proto.http.trace_exporter"] = MagicMock()
     sys.modules["opentelemetry.exporter.otlp.proto.http.trace_exporter"].OTLPSpanExporter = MockOTLPSpanExporterHTTP
 
+    # Mock the Jaeger exporter
+    sys.modules["opentelemetry.exporter.jaeger"] = MagicMock()
+    sys.modules["opentelemetry.exporter.jaeger.thrift"] = MagicMock()
+    sys.modules["opentelemetry.exporter.jaeger.thrift"].JaegerExporter = MockJaegerExporter
+
     sys.modules["opentelemetry.sdk.trace.export"] = MagicMock()
     sys.modules["opentelemetry.sdk.trace.export"].BatchSpanProcessor = MockBatchSpanProcessor
+    sys.modules["opentelemetry.sdk.trace.export"].ConsoleSpanExporter = MagicMock()
 
     # Yield to allow tests to run
     yield
@@ -75,6 +98,13 @@ def memory_tracer():
 
 @pytest.fixture(scope="session", autouse=True)
 def filter_deprecation_warnings():
-    import warnings
+    # Filter out common deprecation warnings
     warnings.filterwarnings("ignore", message="pkg_resources is deprecated as an API")
+
+    # Filter Pydantic deprecation warnings
+    warnings.filterwarnings("ignore", message="Using extra keyword arguments on `Field` is deprecated", category=UserWarning)
+    warnings.filterwarnings("ignore", message="Support for class-based `config` is deprecated", category=DeprecationWarning)
+    warnings.filterwarnings("ignore", message="Valid config keys have changed in V2", category=UserWarning)
+    warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
     yield

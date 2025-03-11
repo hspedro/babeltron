@@ -29,7 +29,7 @@ class TranslationRequest(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "text": "Hello, how are you?",
                 "src_lang": "en",

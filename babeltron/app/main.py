@@ -1,18 +1,30 @@
+import importlib.metadata
+import logging
 import os
-from importlib.metadata import version
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse, PlainTextResponse
 
 from babeltron.app.middlewares.auth import BasicAuthMiddleware
+from babeltron.app.models.m2m import M2MTranslationModel
 from babeltron.app.monitoring import PrometheusMiddleware, metrics_endpoint
 from babeltron.app.tracing import setup_jaeger
 from babeltron.app.utils import include_routers
 
+# Get version from package metadata
 try:
-    __version__ = version("babeltron")
-except ImportError:
-    __version__ = "dev"
+    __version__ = importlib.metadata.version("babeltron")
+except importlib.metadata.PackageNotFoundError:
+    # If package is not installed, try to get version from pyproject.toml
+    try:
+        import tomli
+
+        with open("pyproject.toml", "rb") as f:
+            pyproject = tomli.load(f)
+            __version__ = pyproject["project"]["version"]
+    except (FileNotFoundError, KeyError, ImportError):
+        __version__ = "dev"
 
 
 def create_app() -> FastAPI:
@@ -68,6 +80,8 @@ def create_app() -> FastAPI:
                 "/healthz",
                 "/readyz",
                 "/metrics",
+                "/version",  # Add version endpoint to excluded paths
+                "/version-badge",  # Add version badge endpoint to excluded paths
             ],
         )
 
@@ -80,15 +94,48 @@ def create_app() -> FastAPI:
     # Add Prometheus middleware
     app.add_middleware(PrometheusMiddleware)
 
+    # Add version endpoint for badge
+    @app.get("/version", response_class=PlainTextResponse, include_in_schema=False)
+    async def get_version():
+        return __version__
+
+    # Add version badge endpoint for Shields.io
+    @app.get("/version-badge", response_class=JSONResponse, include_in_schema=False)
+    async def get_version_badge():
+        return {
+            "schemaVersion": 1,
+            "label": "version",
+            "message": __version__,
+            "color": "green",
+            "cacheSeconds": 3600,  # Cache for 1 hour
+        }
+
+    @app.get("/healthz", include_in_schema=False)
+    async def health():
+        return {"status": "ok"}
+
+    @app.get("/readyz", include_in_schema=False)
+    async def ready():
+        # Check if model is loaded
+        try:
+            # Just initialize the model to check if it loads correctly
+            M2MTranslationModel()
+            return {"status": "ready"}
+        except Exception as e:
+            logging.error(f"Readiness check failed: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service not ready",
+            )
+
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics():
+        return PlainTextResponse(content=metrics_endpoint())
+
     return app
 
 
 app = create_app()
-
-
-@app.get("/metrics", include_in_schema=False)
-async def metrics():
-    return Response(content=metrics_endpoint(), media_type="text/plain")
 
 
 if __name__ == "__main__":

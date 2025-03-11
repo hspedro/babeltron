@@ -14,7 +14,8 @@ services:
       - METRICS_ENABLED=true
       - OTLP_MODE=otlp-grpc
       - OTEL_SERVICE_NAME=babeltron
-      - OTLP_GRPC_ENDPOINT=otel-collector:4317
+      - OTLP_COLLECTOR_HOST=otel-collector
+      - OTLP_COLLECTOR_PORT=4317
       - API_PASSWORD=translation2025
       - WORKER_COUNT=2
     restart: unless-stopped
@@ -24,6 +25,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    depends_on:
+      - otel-collector
 
   prometheus:
     image: prom/prometheus:latest
@@ -53,58 +56,41 @@ services:
     depends_on:
       - prometheus
 
-  jaeger-collector:
-    container_name: jaeger-collector
-    image: jaegertracing/jaeger-collector:1.57.0
-    command:
-      - "--cassandra.keyspace=jaeger_v1_dc1"
-      - "--cassandra.servers=cassandra"
-      - "--collector.otlp.enabled=true"
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "6831:6831/udp"   # Jaeger thrift compact (agent)
+      - "6832:6832/udp"   # Jaeger thrift binary (agent)
+      - "5778:5778"       # Agent configs
+      - "16686:16686"     # Jaeger UI
+      - "14250:14250"     # Model/collector gRPC
+      - "14268:14268"     # Jaeger HTTP (collector)
+      - "14269:14269"     # Admin port
     environment:
-      - SAMPLING_CONFIG_TYPE=adaptive
-    ports:
-      - "4317" # accept OpenTelemetry Protocol (OTLP) over gRPC
-      - "4318" # accept OpenTelemetry Protocol (OTLP) over HTTP
-    restart: on-failure
-    depends_on:
-      - cassandra-schema
-
-  cassandra:
-    container_name: cassandra
-    image: cassandra:4.1.4
-
-  cassandra-schema:
-    container_name: cassandra-schema
-    image: jaegertracing/jaeger-cassandra-schema:1.57.0
-    depends_on:
-      - cassandra
-
-  jaeger-query:
-    container_name: jaeger-query
-    image: jaegertracing/jaeger-query:1.57.0
-    command:
-      - "--cassandra.keyspace=jaeger_v1_dc1"
-      - "--cassandra.servers=cassandra"
-    ports:
-      - "16686:16686"
-      - "16687:16687"
-    restart: on-failure
-    depends_on:
-      - cassandra-schema
+      - COLLECTOR_OTLP_ENABLED=true
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - SAMPLING_STRATEGIES_FILE=/etc/jaeger/sampling.json
+      - LOG_LEVEL=debug
+    volumes:
+      - ./etc/jaeger-sampling.json:/etc/jaeger/sampling.json
+    restart: unless-stopped
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.100.0
+    image: otel/opentelemetry-collector-contrib:latest
     container_name: otel-collector
-    command:
-      - "--config=/conf/config.yaml"
+    command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
-      - ./etc/otel-collector-config.yaml:/conf/config.yaml
+      - ./etc/otel-collector-config.yaml:/etc/otel-collector-config.yaml
     ports:
-      - "4317" # OTLP gRPC receiver
-      - "4318" # OTLP http receiver
-    restart: on-failure
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # Health check extension
+    restart: unless-stopped
     depends_on:
-      - jaeger-collector
+      - jaeger
 
 volumes:
   grafana-storage:

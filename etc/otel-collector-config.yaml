@@ -2,26 +2,40 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
-
-exporters:
-  otlp:
-    endpoint: jaeger-collector:4317
-    tls:
-      insecure: true
-  otlphttp:
-    endpoint: http://jaeger-collector:4318
-    tls:
-      insecure: true
+        endpoint: 0.0.0.0:4318
 
 processors:
   batch:
+    # Batch size and timeout settings can be adjusted based on your needs
+    send_batch_size: 1000
+    timeout: 10s
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+exporters:
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  debug:
+    verbosity: detailed
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
 
 service:
+  extensions: [health_check, pprof, zpages]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp] # export to jaeger-collector:4317
-      # exporters: [otlphttp] # export to jaeger-collector:4318
-      # exporters: [jaeger] # export to jaeger-collector:14250
+      processors: [memory_limiter, batch]
+      exporters: [otlp, debug]

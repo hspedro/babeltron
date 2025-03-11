@@ -1,6 +1,6 @@
 [project]
 name = "babeltron"
-version = "0.3.1"
+version = "0.3.2"
 dynamic = ["version"]
 description = "A Python-based REST API that leverages single multilingual models like mBERT to provide efficient text translation services"
 authors = [
@@ -63,6 +63,11 @@ asyncio_mode = "auto"
 markers = [
     "asyncio: mark a test as an asyncio test",
 ]
+filterwarnings = [
+    "ignore::DeprecationWarning:opentelemetry.exporter.jaeger",
+    "ignore::UserWarning:pydantic",
+    "ignore::DeprecationWarning:pydantic",
+]
 
 [tool.coverage.run]
 source = ["babeltron"]
@@ -75,4 +80,9 @@ python_functions = "test_*"
 asyncio_mode = "auto"
 markers = [
     "asyncio: mark a test as an asyncio test",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:opentelemetry.exporter.jaeger",
+    "ignore::UserWarning:pydantic",
+    "ignore::DeprecationWarning:pydantic",
 ]
