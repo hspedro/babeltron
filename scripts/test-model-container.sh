@@ -60,7 +60,7 @@ done
 
 # Test translation
 echo "Testing translation..."
-RESPONSE=$(curl -s -X POST "http://localhost:8000/translate" \
+RESPONSE=$(curl -s -X POST "http://localhost:8000/api/v1/translate" \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Hello, how are you?",

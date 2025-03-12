@@ -25,7 +25,7 @@ class TestBasicAuthMiddleware:
         credentials = base64.b64encode(b"test_user:test_password").decode()
         request = MagicMock(spec=Request)
         request.headers = Headers({"Authorization": f"Basic {credentials}"})
-        request.url.path = "/api/translate"
+        request.url.path = "/api/v1/translate"
         return request
 
     @pytest.fixture
@@ -47,7 +47,7 @@ class TestBasicAuthMiddleware:
         credentials = base64.b64encode(b"wrong_user:wrong_password").decode()
         request = MagicMock(spec=Request)
         request.headers = Headers({"Authorization": f"Basic {credentials}"})
-        request.url.path = "/api/translate"
+        request.url.path = "/api/v1/translate"
 
         mock_call_next = AsyncMock()
 
@@ -69,7 +69,7 @@ class TestBasicAuthMiddleware:
     async def test_dispatch_with_missing_auth_header(self, middleware):
         request = MagicMock(spec=Request)
         request.headers = Headers({})
-        request.url.path = "/api/translate"
+        request.url.path = "/api/v1/translate"
 
         mock_call_next = AsyncMock()
 

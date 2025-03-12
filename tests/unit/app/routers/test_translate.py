@@ -36,7 +36,7 @@ def test_translate_success(mock_translation_model, mock_get_model, client):
         "tgt_lang": "fr"
     }
 
-    response = client.post("/translate", json=test_data)
+    response = client.post("/api/v1/translate", json=test_data)
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["translation"] == "Bonjour le monde"
@@ -74,7 +74,7 @@ def test_translate_with_model_type(mock_translation_model, mock_get_model, clien
         "model_type": "m2m100"
     }
 
-    response = client.post("/translate", json=test_data)
+    response = client.post("/api/v1/translate", json=test_data)
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["translation"] == "Bonjour le monde"
@@ -102,7 +102,7 @@ def test_translate_model_not_loaded(mock_translation_model, mock_get_model, clie
         "tgt_lang": "fr"
     }
 
-    response = client.post("/translate", json=test_data)
+    response = client.post("/api/v1/translate", json=test_data)
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
     data = response.json()
     assert "detail" in data
@@ -134,7 +134,7 @@ def test_translate_model_error(mock_translation_model, mock_get_model, client):
     }
 
     # Make the request
-    response = client.post("/translate", json=test_data)
+    response = client.post("/api/v1/translate", json=test_data)
 
     # Check that we got a 500 error
     assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

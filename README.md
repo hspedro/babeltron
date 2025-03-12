@@ -113,7 +113,7 @@ Once the server is running, you can use the translation API:
 
 ```bash
 # Translate text from English to Spanish
-curl -X POST "http://localhost:8000/translate" \
+curl -X POST "http://localhost:8000/api/v1/translate" \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Hello, how are you?",
@@ -242,7 +242,7 @@ Where `<base64-encoded-credentials>` is the Base64 encoding of `username:passwor
 
 ```bash
 # Replace 'your_username' and 'your_password' with your credentials
-curl -X POST "http://localhost:8000/translate" \
+curl -X POST "http://localhost:8000/api/v1/translate" \
   -H "Content-Type: application/json" \
   -H "Authorization: Basic $(echo -n 'your_username:your_password' | base64)" \
   -d '{"text": "Hello world", "src_lang": "en", "tgt_lang": "fr"}'
@@ -252,7 +252,7 @@ or
 
 ```bash
 # Replace 'your_username' and 'your_password' with your credentials
-curl -X POST "http://localhost:8000/translate" \
+curl -X POST "http://localhost:8000/api/v1/translate" \
   -H "Content-Type: application/json" \
   -u "your_username:your_password" \
   -d '{
