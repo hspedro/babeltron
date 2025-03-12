@@ -1,0 +1,143 @@
+name: Build and Push Docker Image with Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_size:
+        description: 'Model size to embed (small, medium, large)'
+        required: true
+        default: 'small'
+        type: choice
+        options:
+          - small
+          - medium
+          - large
+      tag:
+        description: 'Image tag (default: latest)'
+        required: false
+        default: 'latest'
+        type: string
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Dockerfile with selected model
+        run: |
+          MODEL_URL=""
+          MODEL_SIZE="${{ github.event.inputs.model_size }}"
+
+          if [ "$MODEL_SIZE" == "small" ]; then
+            MODEL_URL="https://huggingface.co/facebook/m2m100_418M/resolve/main"
+            MODEL_SIZE_DESC="418M parameters, ~1GB disk space"
+          elif [ "$MODEL_SIZE" == "medium" ]; then
+            MODEL_URL="https://huggingface.co/facebook/m2m100_1.2B/resolve/main"
+            MODEL_SIZE_DESC="1.2B parameters, ~2.5GB disk space"
+          elif [ "$MODEL_SIZE" == "large" ]; then
+            MODEL_URL="https://huggingface.co/facebook/m2m100/resolve/main"
+            MODEL_SIZE_DESC="12B parameters, ~24GB disk space"
+          fi
+
+          cat > Dockerfile.with-model << EOF
+          # Build stage
+          FROM python:3.10-slim AS builder
+
+          WORKDIR /app
+
+          # Install a specific version of Poetry that supports --no-dev
+          RUN pip install poetry==2.1.1
+
+          # Copy project files
+          COPY pyproject.toml poetry.lock* README.md ./
+          COPY babeltron ./babeltron
+
+          # Configure poetry to not use a virtual environment
+          RUN poetry config virtualenvs.create false \\
+              && poetry install --without dev --no-interaction --no-ansi
+
+          # Model download stage
+          FROM python:3.10-slim AS model-downloader
+
+          WORKDIR /models
+
+          # Install dependencies for model download
+          RUN apt-get update && apt-get install -y \\
+              wget \\
+              && rm -rf /var/lib/apt/lists/*
+
+          # Download the ${{ github.event.inputs.model_size }} model
+          # ${{ github.event.inputs.model_size }} model: $MODEL_SIZE_DESC
+          RUN wget -q $MODEL_URL/pytorch_model.bin -O pytorch_model.bin \\
+              && wget -q $MODEL_URL/config.json -O config.json \\
+              && wget -q $MODEL_URL/sentencepiece.bpe.model -O sentencepiece.bpe.model \\
+              && wget -q $MODEL_URL/tokenizer_config.json -O tokenizer_config.json \\
+              && wget -q $MODEL_URL/tokenizer.json -O tokenizer.json \\
+              && wget -q $MODEL_URL/vocab.json -O vocab.json
+
+          # Final stage
+          FROM python:3.10-slim
+
+          WORKDIR /app
+
+          # Copy Python dependencies from builder stage
+          COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+          COPY --from=builder /usr/local/bin /usr/local/bin
+
+          # Copy application code
+          COPY --from=builder /app/babeltron ./babeltron
+
+          # Copy the downloaded model
+          COPY --from=model-downloader /models /models
+
+          # Copy and set permissions on the entrypoint script BEFORE changing user
+          COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+          RUN chmod +x /app/docker-entrypoint.sh
+
+          ENV PYTHONPATH=/app
+          ENV MODEL_PATH=/models
+
+          # Create a non-root user and switch to it
+          RUN useradd -m appuser
+          USER appuser
+
+          EXPOSE 8000
+
+          ENTRYPOINT ["/app/docker-entrypoint.sh"]
+          EOF
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ github.event.inputs.model_size }}-${{ github.event.inputs.tag }}
+            type=raw,value=${{ github.event.inputs.model_size }}-latest,enable=${{ github.event.inputs.tag == 'latest' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.with-model
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

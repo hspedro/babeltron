@@ -11,7 +11,6 @@ services:
       - ./models:/models
     environment:
       - MODEL_PATH=/models
-      - METRICS_ENABLED=true
       - OTLP_MODE=otlp-grpc
       - OTEL_SERVICE_NAME=babeltron
       - OTLP_COLLECTOR_HOST=otel-collector
