@@ -3,6 +3,7 @@
 # Define model path variable with default value, can be overridden by environment
 MODEL_PATH ?= ./models
 MODEL_SIZE ?= small
+IMAGE_NAME ?= babeltron
 
 # Extract target descriptions from comments
 help: ## Show this help message
@@ -93,9 +94,9 @@ serve-prod: check-poetry ## Run the API server in production mode (no reload)
 # Docker commands
 docker-build: ## Build Docker image
 	@echo "Building Docker image..."
-	@docker build -t babeltron:latest .
+	@docker build -t $(IMAGE_NAME):latest .
 
-docker-build-with-model: ## Build Docker image with embedded model
+docker-build-with-model: ## Build Docker image with embedded model (use IMAGE_NAME=name to customize image name)
 	@echo "Building Docker image with embedded $(MODEL_SIZE) model..."
 	@if [ ! -d "$(MODEL_PATH)" ] || [ -z "$(shell ls -A $(MODEL_PATH) 2>/dev/null)" ]; then \
 		echo "No model files found in $(MODEL_PATH) directory. Downloading..."; \
@@ -111,8 +112,8 @@ docker-build-with-model: ## Build Docker image with embedded model
 		fi; \
 	fi
 	@echo "Building Docker image..."
-	@docker build -t babeltron:$(MODEL_SIZE) -f Dockerfile.with-model .
-	@echo "Docker image with $(MODEL_SIZE) model built successfully as babeltron:$(MODEL_SIZE)"
+	@docker build -t $(IMAGE_NAME) -f Dockerfile.with-model .
+	@echo "Docker image with $(MODEL_SIZE) model built successfully as $(IMAGE_NAME)"
 
 docker-run: ## Run Docker container with model volume mount
 	@echo "Checking for model files..."
@@ -128,7 +129,7 @@ docker-run: ## Run Docker container with model volume mount
 		fi; \
 	fi
 	@echo "Running Docker container..."
-	@docker run -p 8000:8000 -v $(shell pwd)/$(MODEL_PATH):/models babeltron:latest
+	@docker run -p 8000:8000 -v $(shell pwd)/$(MODEL_PATH):/models $(IMAGE_NAME):latest
 
 docker-up: ## Build and start services with docker-compose
 	@echo "Checking for model files..."
