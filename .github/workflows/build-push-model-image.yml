@@ -39,22 +39,44 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Dockerfile with selected model
-        run: |
-          MODEL_URL=""
-          MODEL_SIZE="${{ github.event.inputs.model_size }}"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
 
-          if [ "$MODEL_SIZE" == "small" ]; then
-            MODEL_URL="https://huggingface.co/facebook/m2m100_418M/resolve/main"
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create false
+          poetry install --no-dev
+
+      - name: Download model
+        run: |
+          MODEL_SIZE=""
+          MODEL_SIZE_DESC=""
+
+          if [ "${{ github.event.inputs.model_size }}" == "small" ]; then
+            MODEL_SIZE="418M"
             MODEL_SIZE_DESC="418M parameters, ~1GB disk space"
-          elif [ "$MODEL_SIZE" == "medium" ]; then
-            MODEL_URL="https://huggingface.co/facebook/m2m100_1.2B/resolve/main"
+          elif [ "${{ github.event.inputs.model_size }}" == "medium" ]; then
+            MODEL_SIZE="1.2B"
             MODEL_SIZE_DESC="1.2B parameters, ~2.5GB disk space"
-          elif [ "$MODEL_SIZE" == "large" ]; then
-            MODEL_URL="https://huggingface.co/facebook/m2m100/resolve/main"
+          elif [ "${{ github.event.inputs.model_size }}" == "large" ]; then
+            MODEL_SIZE="12B"
             MODEL_SIZE_DESC="12B parameters, ~24GB disk space"
           fi
 
+          echo "Downloading ${{ github.event.inputs.model_size }} model ($MODEL_SIZE_DESC)..."
+          mkdir -p models
+          python -m babeltron.scripts.download_models --size $MODEL_SIZE --output-dir ./models
+
+      - name: Create Dockerfile with embedded model
+        run: |
           cat > Dockerfile.with-model << EOF
           # Build stage
           FROM python:3.10-slim AS builder
@@ -72,25 +94,6 @@ jobs:
           RUN poetry config virtualenvs.create false \\
               && poetry install --without dev --no-interaction --no-ansi
 
-          # Model download stage
-          FROM python:3.10-slim AS model-downloader
-
-          WORKDIR /models
-
-          # Install dependencies for model download
-          RUN apt-get update && apt-get install -y \\
-              wget \\
-              && rm -rf /var/lib/apt/lists/*
-
-          # Download the ${{ github.event.inputs.model_size }} model
-          # ${{ github.event.inputs.model_size }} model: $MODEL_SIZE_DESC
-          RUN wget -q $MODEL_URL/pytorch_model.bin -O pytorch_model.bin \\
-              && wget -q $MODEL_URL/config.json -O config.json \\
-              && wget -q $MODEL_URL/sentencepiece.bpe.model -O sentencepiece.bpe.model \\
-              && wget -q $MODEL_URL/tokenizer_config.json -O tokenizer_config.json \\
-              && wget -q $MODEL_URL/tokenizer.json -O tokenizer.json \\
-              && wget -q $MODEL_URL/vocab.json -O vocab.json
-
           # Final stage
           FROM python:3.10-slim
 
@@ -104,7 +107,7 @@ jobs:
           COPY --from=builder /app/babeltron ./babeltron
 
           # Copy the downloaded model
-          COPY --from=model-downloader /models /models
+          COPY models /models
 
           # Copy and set permissions on the entrypoint script BEFORE changing user
           COPY docker-entrypoint.sh /app/docker-entrypoint.sh
