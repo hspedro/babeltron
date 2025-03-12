@@ -2,7 +2,6 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/github/license/hspedro/babeltron)](https://github.com/hspedro/babeltron/blob/main/LICENSE)
-[![Version](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/hspedro/babeltron/main/.github/badges/version.json)](https://github.com/hspedro/babeltron/releases)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](https://github.com/hspedro/babeltron/actions/workflows/test.yml)
 
