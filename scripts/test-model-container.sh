@@ -25,19 +25,24 @@ done
 
 echo "Testing Babeltron container with image tag: $IMAGE_TAG"
 
-# Pull the image
-echo "Pulling image ghcr.io/hspedro/babeltron:$IMAGE_TAG..."
-docker pull ghcr.io/hspedro/babeltron:$IMAGE_TAG
+# Check if image exists locally, pull only if it doesn't
+FULL_IMAGE_NAME="ghcr.io/hspedro/babeltron:$IMAGE_TAG"
+if docker image inspect "$FULL_IMAGE_NAME" &>/dev/null; then
+  echo "Image $FULL_IMAGE_NAME found locally, skipping pull"
+else
+  echo "Image $FULL_IMAGE_NAME not found locally, pulling from registry..."
+  docker pull "$FULL_IMAGE_NAME"
+fi
 
 # Run the container
 echo "Starting container $CONTAINER_NAME..."
-docker run -d --name $CONTAINER_NAME -p 8000:8000 ghcr.io/hspedro/babeltron:$IMAGE_TAG
+docker run -d --name $CONTAINER_NAME -p 8000:8000 "$FULL_IMAGE_NAME"
 
 # Wait for the container to be ready
 echo "Waiting for the container to be ready..."
 for i in {1..30}; do
-  if curl -s http://localhost:8000/healthz | grep -q "ok"; then
-    echo "Container is healthy!"
+  if curl -s http://localhost:8000/readyz | grep -q "ready"; then
+    echo "Container is ready!"
     break
   fi
 
@@ -55,7 +60,7 @@ done
 
 # Test translation
 echo "Testing translation..."
-RESPONSE=$(curl -s -X POST "http://localhost:8000/api/v1/translate" \
+RESPONSE=$(curl -s -X POST "http://localhost:8000/translate" \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Hello, how are you?",

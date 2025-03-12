@@ -13,11 +13,10 @@ else
     WORKER_COUNT_INT=1
 fi
 
+export UVICORN_ACCESS_LOG=0
 # If WORKER_COUNT is greater than 1, use Gunicorn
 if [ "$WORKER_COUNT_INT" -gt 1 ]; then
     echo "Starting with Gunicorn using $WORKER_COUNT_INT workers"
-    # Set environment variable to disable Uvicorn access logs inside Gunicorn workers
-    export UVICORN_ACCESS_LOG=0
     exec gunicorn babeltron.app.main:app \
         --workers $WORKER_COUNT_INT \
         --worker-class uvicorn.workers.UvicornWorker \
@@ -26,5 +25,5 @@ if [ "$WORKER_COUNT_INT" -gt 1 ]; then
         --error-logfile -
 else
     echo "Starting with Uvicorn (single worker)"
-    exec UVICORN_ACCESS_LOG=0 uvicorn babeltron.app.main:app --host 0.0.0.0 --port 8000
+    exec uvicorn babeltron.app.main:app --host 0.0.0.0 --port 8000
 fi

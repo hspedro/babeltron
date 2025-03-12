@@ -1,7 +1,8 @@
-.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-small download-model-medium download-model-large serve serve-prod docker-build docker-run docker-compose-up docker-compose-down pre-commit-install pre-commit-run
+.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-small download-model-medium download-model-large serve serve-prod docker-build docker-run docker-compose-up docker-compose-down pre-commit-install pre-commit-run docker-build-with-model
 
 # Define model path variable with default value, can be overridden by environment
 MODEL_PATH ?= ./models
+MODEL_SIZE ?= small
 
 # Extract target descriptions from comments
 help: ## Show this help message
@@ -93,6 +94,25 @@ serve-prod: check-poetry ## Run the API server in production mode (no reload)
 docker-build: ## Build Docker image
 	@echo "Building Docker image..."
 	@docker build -t babeltron:latest .
+
+docker-build-with-model: ## Build Docker image with embedded model
+	@echo "Building Docker image with embedded $(MODEL_SIZE) model..."
+	@if [ ! -d "$(MODEL_PATH)" ] || [ -z "$(shell ls -A $(MODEL_PATH) 2>/dev/null)" ]; then \
+		echo "No model files found in $(MODEL_PATH) directory. Downloading..."; \
+		if [ "$(MODEL_SIZE)" = "small" ]; then \
+			$(MAKE) download-model-small; \
+		elif [ "$(MODEL_SIZE)" = "medium" ]; then \
+			$(MAKE) download-model-medium; \
+		elif [ "$(MODEL_SIZE)" = "large" ]; then \
+			$(MAKE) download-model-large; \
+		else \
+			echo "Invalid model size: $(MODEL_SIZE). Using small model."; \
+			$(MAKE) download-model-small; \
+		fi; \
+	fi
+	@echo "Building Docker image..."
+	@docker build -t babeltron:$(MODEL_SIZE) -f Dockerfile.with-model .
+	@echo "Docker image with $(MODEL_SIZE) model built successfully as babeltron:$(MODEL_SIZE)"
 
 docker-run: ## Run Docker container with model volume mount
 	@echo "Checking for model files..."
