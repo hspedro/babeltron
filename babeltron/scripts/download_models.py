@@ -33,7 +33,6 @@ def parse_args():
 def download_model(
     model_size: str = DEFAULT_MODEL_SIZE,
     output_dir: Optional[Union[str, Path]] = None,
-    show_progress: bool = True,
 ) -> str:
     """
     Download M2M-100 model and tokenizer.
@@ -41,7 +40,6 @@ def download_model(
     Args:
         model_size (str): Size of the model to download (418M, 1.2B, or 12B)
         output_dir (str or Path, optional): Directory to save the model to
-        show_progress (bool): Whether to show a progress bar
 
     Returns:
         str: Path to the downloaded model directory

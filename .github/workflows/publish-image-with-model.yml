@@ -68,23 +68,13 @@ jobs:
 
       - name: Download model
         run: |
-          MODEL_SIZE=""
-          MODEL_SIZE_DESC=""
-
           if [ "${{ github.event.inputs.model_size }}" == "small" ]; then
-            MODEL_SIZE="418M"
-            MODEL_SIZE_DESC="418M parameters, ~1GB disk space"
+            make download-model-small
           elif [ "${{ github.event.inputs.model_size }}" == "medium" ]; then
-            MODEL_SIZE="1.2B"
-            MODEL_SIZE_DESC="1.2B parameters, ~2.5GB disk space"
+            make download-model-medium
           elif [ "${{ github.event.inputs.model_size }}" == "large" ]; then
-            MODEL_SIZE="12B"
-            MODEL_SIZE_DESC="12B parameters, ~24GB disk space"
+            make download-model-large
           fi
-
-          echo "Downloading ${{ github.event.inputs.model_size }} model ($MODEL_SIZE_DESC)..."
-          mkdir -p models
-          python -m babeltron.scripts.download_models --size $MODEL_SIZE --output-dir ./models
 
       - name: Create Dockerfile with embedded model
         run: |
