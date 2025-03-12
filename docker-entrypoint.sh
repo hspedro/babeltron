@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 # Default to 1 worker if not specified
@@ -6,7 +6,7 @@ WORKER_COUNT=${WORKER_COUNT:-1}
 
 # Convert WORKER_COUNT to integer (handles string values from Kubernetes)
 # Use regex to validate if WORKER_COUNT is a valid number
-if [[ "$WORKER_COUNT" =~ ^[0-9]+$ ]]; then
+if [ -n "$WORKER_COUNT" ] && [ "$WORKER_COUNT" -eq "$WORKER_COUNT" ] 2>/dev/null; then
     WORKER_COUNT_INT=$WORKER_COUNT
 else
     echo "Warning: WORKER_COUNT '$WORKER_COUNT' is not a valid number. Defaulting to 1."

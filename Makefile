@@ -112,8 +112,8 @@ docker-build-with-model: ## Build Docker image with embedded model (use IMAGE_NA
 		fi; \
 	fi
 	@echo "Building Docker image..."
-	@docker build -t $(IMAGE_NAME) -f Dockerfile.with-model .
-	@echo "Docker image with $(MODEL_SIZE) model built successfully as $(IMAGE_NAME)"
+	@docker build -t $(IMAGE_NAME):$(MODEL_SIZE) -f Dockerfile.with-model .
+	@echo "Docker image with $(MODEL_SIZE) model built successfully as $(IMAGE_NAME):$(MODEL_SIZE)"
 
 docker-run: ## Run Docker container with model volume mount
 	@echo "Checking for model files..."

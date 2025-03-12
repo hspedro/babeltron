@@ -30,7 +30,9 @@ COPY models /models
 
 # Copy and set permissions on the entrypoint script BEFORE changing user
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+# Ensure script has Unix line endings and is executable
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && \
+    chmod +x /app/docker-entrypoint.sh
 
 ENV PYTHONPATH=/app
 ENV MODEL_PATH=/models
