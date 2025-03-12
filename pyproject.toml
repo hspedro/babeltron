@@ -33,6 +33,7 @@ opentelemetry-instrumentation-fastapi = "^0.51b0"
 opentelemetry-exporter-otlp = "^1.30.0"
 opentelemetry-instrumentation-logging = "^0.51b0"
 gunicorn = "^23.0.0"
+tomli = "^2.2.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.0"

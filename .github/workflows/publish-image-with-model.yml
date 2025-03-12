@@ -46,14 +46,25 @@ jobs:
           cache: 'pip'
 
       - name: Install Poetry
+        uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: latest
+
+      - name: Setup virtualenv
         run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          poetry config virtualenvs.create true --local
+          poetry config virtualenvs.in-project true --local
+
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: ${{ runner.os }}-poetry-${{ inputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-${{ inputs.python-version }}-
 
       - name: Install dependencies
-        run: |
-          poetry config virtualenvs.create false
-          poetry install --no-dev
+        run: poetry install
 
       - name: Download model
         run: |
