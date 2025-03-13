@@ -1,15 +1,21 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-from fastapi import status
+from fastapi import FastAPI, status
 
-from babeltron.app.main import app
 from babeltron.app.models.factory import ModelType
+from babeltron.app.routers import translate as translate_router
+
+# Create a test app without authentication middleware
+test_app = FastAPI()
+test_app.include_router(translate_router.router, prefix="/api/v1")
 
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    # Create a client with our test app that has no auth middleware
+    with TestClient(test_app) as client:
+        yield client
 
 
 # Patch both the factory function and the global translation_model
@@ -52,23 +58,24 @@ def test_translate_success(mock_translation_model, mock_get_model, client):
 
 
 def test_translate_with_model_type(client):
-    # Create a mock model for NLLB
-    mock_nllb_model = MagicMock()
-    mock_nllb_model.is_loaded = True
-    mock_nllb_model.architecture = "nllb"
-    mock_nllb_model.translate.return_value = "Hola, ¿cómo está?"
+    # Create a mock model for NLLB with translate method
+    nllb_mock = MagicMock()
+    nllb_mock.is_loaded = True
+    nllb_mock.architecture = "mps_fp16"
+    nllb_mock.translate.return_value = "Hola, ¿cómo está?"
 
     # Create a mock for the default model
-    mock_default_model = MagicMock()
-    mock_default_model.is_loaded = True
-    mock_default_model.architecture = "m2m100"
+    default_mock = MagicMock()
+    default_mock.is_loaded = True
+    default_mock.architecture = "m2m100"
 
-    # Use context managers for patching
-    with patch("babeltron.app.routers.translate.BABELTRON_MODEL_TYPE", "m2m100"), \
-         patch("babeltron.app.models.factory.get_translation_model", return_value=mock_nllb_model), \
-         patch("babeltron.app.routers.translate.translation_model", mock_default_model), \
-         patch("babeltron.app.models.nllb.NLLBTranslationModel.load", return_value=None), \
-         patch("babeltron.app.models.m2m100.M2M100TranslationModel.load", return_value=None):
+    # Create a mock tracer
+    mock_tracer = MagicMock()
+
+    # Patch the factory to return our NLLB mock when requested
+    with patch("babeltron.app.models.factory.get_translation_model", return_value=nllb_mock), \
+         patch("babeltron.app.routers.translate.translation_model", default_mock), \
+         patch("opentelemetry.trace.get_tracer", return_value=mock_tracer):
 
         # Make a request with a specific model_type
         response = client.post(
@@ -81,12 +88,12 @@ def test_translate_with_model_type(client):
             },
         )
 
-        # Verify the response matches what we actually get
+        # Verify the response matches what we expect
         assert response.status_code == 200
         assert response.json() == {
             "translation": "Hola, ¿cómo está?",
             "model_type": "nllb",
-            "architecture": "nllb"
+            "architecture": "mps_fp16"
         }
 
 

@@ -4,7 +4,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 
-from babeltron.app.config import LOG_LEVEL
+from babeltron.app.config import (
+    AUTH_EXCLUDE_PATHS,
+    AUTH_PASSWORD,
+    AUTH_USERNAME,
+    LOG_LEVEL,
+)
+from babeltron.app.middlewares.auth import BasicAuthMiddleware
 from babeltron.app.monitoring import PrometheusMiddleware, metrics_endpoint
 from babeltron.app.routers import healthcheck, translate
 from babeltron.version import __version__
@@ -32,6 +38,14 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers
+)
+
+# Add Basic Auth middleware
+app.add_middleware(
+    BasicAuthMiddleware,
+    username=AUTH_USERNAME,
+    password=AUTH_PASSWORD,
+    exclude_paths=AUTH_EXCLUDE_PATHS,
 )
 
 # Add Prometheus middleware
