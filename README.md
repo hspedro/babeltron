@@ -398,6 +398,12 @@ The following paths are excluded from authentication requirements:
 
 Install pre-commit hooks with `make pre-commit-install` and refer to the [CONTRIBUTING.md](docs/CONTRIBUTING.md) file for more information.
 
+## Architecture
+
+For a detailed technical overview of the system architecture, including diagrams and component interactions, please refer to our [Architecture Documentation](docs/architecture.md).
+
+![Babeltron Overview](images/overview.png)
+
 ## License
 
 MIT License
