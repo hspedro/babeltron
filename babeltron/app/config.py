@@ -20,3 +20,17 @@ JAEGER_AGENT_HOST = os.environ.get(
 )
 JAEGER_AGENT_PORT = int(os.environ.get("JAEGER_AGENT_PORT", "6831"))
 SERVICE_NAME = os.environ.get("OTEL_SERVICE_NAME", "babeltron")
+
+# Auth configuration
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")
+AUTH_EXCLUDE_PATHS = set(
+    [
+        "/api/docs",
+        "/api/redoc",
+        "/api/openapi.json",
+        "/api/v1/healthz",
+        "/api/v1/readyz",
+        "/metrics",
+    ]
+)

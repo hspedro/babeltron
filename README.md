@@ -343,8 +343,8 @@ Babeltron supports HTTP Basic Authentication to secure API endpoints. When enabl
 Basic authentication is enabled by setting both environment variables:
 
 ```bash
-API_USERNAME=your_username
-API_PASSWORD=your_password
+AUTH_USERNAME=your_username
+AUTH_PASSWORD=your_password
 ```
 
 If either variable is not set, authentication will be disabled.

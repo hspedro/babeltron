@@ -18,6 +18,8 @@ from babeltron.app.main import app  # noqa: E402
 os.environ["MODEL_PATH"] = "/models"
 os.environ["OTLP_MODE"] = "disabled"  # Disable actual tracing in tests
 os.environ["JAEGER_AGENT_HOST"] = "localhost"  # Use localhost for Jaeger agent
+os.environ["AUTH_USERNAME"] = ""  # Empty username disables auth
+os.environ["AUTH_PASSWORD"] = ""  # Empty password disables auth
 
 
 @pytest.fixture

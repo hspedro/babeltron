@@ -1,6 +1,6 @@
 import base64
 import binascii
-from typing import Awaitable, Callable, Optional, Tuple
+from typing import Awaitable, Callable, Optional, Set, Tuple
 
 from fastapi import Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -8,21 +8,34 @@ from starlette.responses import JSONResponse
 
 
 class BasicAuthMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, username: str, password: str, exclude_paths: list = None):
+    def __init__(
+        self,
+        app,
+        username: str,
+        password: str,
+        exclude_paths: Set[str] = None,
+    ):
         super().__init__(app)
         self.username = username
         self.password = password
-        self.exclude_paths = exclude_paths or [
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-            "/healthz",
-            "/readyz",
-        ]
+        self.exclude_paths = exclude_paths or set(
+            [
+                "/docs",
+                "/redoc",
+                "/openapi.json",
+                "/healthz",
+                "/readyz",
+            ]
+        )
+        self.enforce_auth = self.username and self.password
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ):
+        # If auth is not enforced, pass through all requests
+        if not self.enforce_auth:
+            return await call_next(request)
+
         if any(request.url.path.startswith(path) for path in self.exclude_paths):
             return await call_next(request)
 

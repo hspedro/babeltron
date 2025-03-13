@@ -17,7 +17,7 @@ class TestBasicAuthMiddleware:
             app=MagicMock(),
             username="test_user",
             password="test_password",
-            exclude_paths=["/docs", "/redoc", "/openapi.json", "/healthz", "/readyz"]
+            exclude_paths=["/docs", "/redoc", "/openapi.json", "/healthz", "/readyz"],
         )
 
     @pytest.fixture
