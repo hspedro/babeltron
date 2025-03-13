@@ -1,8 +1,9 @@
-.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-small download-model-medium download-model-large serve serve-prod docker-build docker-run docker-compose-up docker-compose-down pre-commit-install pre-commit-run docker-build-with-model
+.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-m2m-small download-model-m2m-medium download-model-m2m-large download-model-nllb download-model-nllb-small download-model-nllb-medium download-model-nllb-large serve serve-prod docker-build docker-run docker-compose-up docker-compose-down pre-commit-install pre-commit-run docker-build-with-model docker-up docker-down
 
 # Define model path variable with default value, can be overridden by environment
 MODEL_PATH ?= ./models
 MODEL_SIZE ?= small
+BABELTRON_MODEL_TYPE ?= m2m
 IMAGE_NAME ?= babeltron
 PORT ?= 8000
 
@@ -69,19 +70,30 @@ coverage-html: check-poetry ## Generate HTML coverage report
 	@echo "Open htmlcov/index.html in your browser to view the report"
 
 # Model download commands
-download-model: download-model-small ## Download the default (small) translation model
+download-model: download-model-m2m-small ## Download the default (small) translation model
 
-download-model-small: check-poetry ## Download small translation model (418M parameters, ~1GB)
+download-model-m2m-small: check-poetry ## Download small translation model (418M parameters, ~1GB)
 	@echo "Downloading small translation model (418M parameters)..."
 	@poetry run python -m babeltron.scripts.download_models --size 418M --output-dir $(MODEL_PATH)
 
-download-model-medium: check-poetry ## Download medium translation model (1.2B parameters, ~2.5GB)
+download-model-m2m-medium: check-poetry ## Download medium translation model (1.2B parameters, ~2.5GB)
 	@echo "Downloading medium translation model (1.2B parameters)..."
 	@poetry run python -m babeltron.scripts.download_models --size 1.2B --output-dir $(MODEL_PATH)
 
-download-model-large: check-poetry ## Download large translation model (12B parameters, ~24GB)
+download-model-m2m-large: check-poetry ## Download large translation model (12B parameters, ~24GB)
 	@echo "Downloading large translation model (12B parameters)..."
 	@poetry run python -m babeltron.scripts.download_models --size 12B --output-dir $(MODEL_PATH)
+
+# NLLB model download commands
+download-model-nllb: download-model-nllb-small ## Download the default (small) NLLB translation model
+
+download-model-nllb-small: check-poetry ## Download small NLLB translation model (600M parameters, ~1.2GB)
+	@echo "Downloading small NLLB translation model (600M parameters)..."
+	@poetry run python -m babeltron.scripts.download_models --model-type nllb --size 600M --output-dir $(MODEL_PATH)
+
+download-model-nllb-large: check-poetry ## Download large NLLB translation model (3.3B parameters, ~6.6GB)
+	@echo "Downloading large NLLB translation model (3.3B parameters)..."
+	@poetry run python -m babeltron.scripts.download_models --model-type nllb --size 3.3B --output-dir $(MODEL_PATH)
 
 # Add these commands to your Makefile
 serve: check-poetry ## Run the API server in development mode (with reload)
@@ -98,35 +110,72 @@ docker-build: ## Build Docker image
 	@docker build -t $(IMAGE_NAME):latest .
 
 docker-build-with-model: ## Build Docker image with embedded model (use IMAGE_NAME=name to customize image name)
-	@echo "Building Docker image with embedded $(MODEL_SIZE) model..."
+	@echo "Building Docker image with embedded $(BABELTRON_MODEL_TYPE) $(MODEL_SIZE) model..."
 	@if [ ! -d "$(MODEL_PATH)" ] || [ -z "$(shell ls -A $(MODEL_PATH) 2>/dev/null)" ]; then \
 		echo "No model files found in $(MODEL_PATH) directory. Downloading..."; \
-		if [ "$(MODEL_SIZE)" = "small" ]; then \
-			$(MAKE) download-model-small; \
-		elif [ "$(MODEL_SIZE)" = "medium" ]; then \
-			$(MAKE) download-model-medium; \
-		elif [ "$(MODEL_SIZE)" = "large" ]; then \
-			$(MAKE) download-model-large; \
+		if [ "$(BABELTRON_MODEL_TYPE)" = "m2m" ]; then \
+			if [ "$(MODEL_SIZE)" = "small" ]; then \
+				$(MAKE) download-model-m2m-small; \
+			elif [ "$(MODEL_SIZE)" = "medium" ]; then \
+				$(MAKE) download-model-m2m-medium; \
+			elif [ "$(MODEL_SIZE)" = "large" ]; then \
+				$(MAKE) download-model-m2m-large; \
+			else \
+				echo "Invalid model size: $(MODEL_SIZE). Using small model."; \
+				$(MAKE) download-model-m2m-small; \
+			fi; \
+		elif [ "$(BABELTRON_MODEL_TYPE)" = "nllb" ]; then \
+			if [ "$(MODEL_SIZE)" = "small" ]; then \
+				$(MAKE) download-model-nllb-small; \
+			elif [ "$(MODEL_SIZE)" = "large" ]; then \
+				$(MAKE) download-model-nllb-large; \
+			else \
+				echo "Invalid model size: $(MODEL_SIZE). Using small model."; \
+				$(MAKE) download-model-nllb-small; \
+			fi; \
 		else \
-			echo "Invalid model size: $(MODEL_SIZE). Using small model."; \
-			$(MAKE) download-model-small; \
+			echo "Invalid model type: $(BABELTRON_MODEL_TYPE). Using m2m small model."; \
+			$(MAKE) download-model-m2m-small; \
 		fi; \
 	fi
 	@echo "Building Docker image..."
-	@docker build -t $(IMAGE_NAME):$(MODEL_SIZE) -f Dockerfile.with-model .
-	@echo "Docker image with $(MODEL_SIZE) model built successfully as $(IMAGE_NAME):$(MODEL_SIZE)"
+	@docker build -t $(IMAGE_NAME):$(BABELTRON_MODEL_TYPE)-$(MODEL_SIZE) -f Dockerfile.with-model .
+	@echo "Docker image with $(BABELTRON_MODEL_TYPE) $(MODEL_SIZE) model built successfully as $(IMAGE_NAME):$(BABELTRON_MODEL_TYPE)-$(MODEL_SIZE)"
 
 docker-run: ## Run Docker container with model volume mount
 	@echo "Checking for model files..."
 	@if [ ! -d "$(MODEL_PATH)" ] || [ -z "$(shell ls -A $(MODEL_PATH) 2>/dev/null)" ]; then \
 		echo "No model files found in $(MODEL_PATH) directory."; \
-		read -p "Do you want to download the small model now? (y/n) " answer; \
+		read -p "Do you want to download the $(BABELTRON_MODEL_TYPE) $(MODEL_SIZE) model now? (y/n) " answer; \
 		if [ "$$answer" = "y" ]; then \
 			mkdir -p $(MODEL_PATH); \
-			echo "Downloading small model..."; \
-			poetry run python -m babeltron.scripts.download_models --size 418M --output-dir $(MODEL_PATH); \
+			if [ "$(BABELTRON_MODEL_TYPE)" = "m2m" ]; then \
+				if [ "$(MODEL_SIZE)" = "small" ]; then \
+					$(MAKE) download-model-m2m-small; \
+				elif [ "$(MODEL_SIZE)" = "medium" ]; then \
+					$(MAKE) download-model-m2m-medium; \
+				elif [ "$(MODEL_SIZE)" = "large" ]; then \
+					$(MAKE) download-model-m2m-large; \
+				else \
+					echo "Invalid model size: $(MODEL_SIZE). Using small model."; \
+					$(MAKE) download-model-m2m-small; \
+				fi; \
+			elif [ "$(BABELTRON_MODEL_TYPE)" = "nllb" ]; then \
+				if [ "$(MODEL_SIZE)" = "small" ]; then \
+					$(MAKE) download-model-nllb-small; \
+				elif [ "$(MODEL_SIZE)" = "large" ]; then \
+					$(MAKE) download-model-nllb-large; \
+				else \
+					echo "Invalid model size: $(MODEL_SIZE). Using small model."; \
+					$(MAKE) download-model-nllb-small; \
+				fi; \
+			else \
+				echo "Invalid model type: $(BABELTRON_MODEL_TYPE). Using m2m small model."; \
+				$(MAKE) download-model-m2m-small; \
+			fi; \
 		else \
-			echo "Model download skipped. Container may not work properly."; \
+			echo "Aborting."; \
+			exit 1; \
 		fi; \
 	fi
 	@echo "Running Docker container..."
@@ -136,17 +185,40 @@ docker-up: ## Build and start services with docker-compose
 	@echo "Checking for model files..."
 	@if [ ! -d "$(MODEL_PATH)" ] || [ -z "$(shell ls -A $(MODEL_PATH) 2>/dev/null)" ]; then \
 		echo "No model files found in $(MODEL_PATH) directory."; \
-		read -p "Do you want to download the small model now? (y/n) " answer; \
+		read -p "Do you want to download the $(BABELTRON_MODEL_TYPE) $(MODEL_SIZE) model now? (y/n) " answer; \
 		if [ "$$answer" = "y" ]; then \
 			mkdir -p $(MODEL_PATH); \
-			echo "Downloading small model..."; \
-			poetry run python -m babeltron.scripts.download_models --size 418M --output-dir $(MODEL_PATH); \
+			echo "Downloading $(BABELTRON_MODEL_TYPE) $(MODEL_SIZE) model..."; \
+			if [ "$(BABELTRON_MODEL_TYPE)" = "m2m" ]; then \
+				if [ "$(MODEL_SIZE)" = "small" ]; then \
+					$(MAKE) download-model-m2m-small; \
+				elif [ "$(MODEL_SIZE)" = "medium" ]; then \
+					$(MAKE) download-model-m2m-medium; \
+				elif [ "$(MODEL_SIZE)" = "large" ]; then \
+					$(MAKE) download-model-m2m-large; \
+				else \
+					echo "Invalid model size: $(MODEL_SIZE). Using small model."; \
+					$(MAKE) download-model-m2m-small; \
+				fi; \
+			elif [ "$(BABELTRON_MODEL_TYPE)" = "nllb" ]; then \
+				if [ "$(MODEL_SIZE)" = "small" ]; then \
+					$(MAKE) download-model-nllb-small; \
+				elif [ "$(MODEL_SIZE)" = "large" ]; then \
+					$(MAKE) download-model-nllb-large; \
+				else \
+					echo "Invalid model size: $(MODEL_SIZE). Using small model."; \
+					$(MAKE) download-model-nllb-small; \
+				fi; \
+			else \
+				echo "Invalid model type: $(BABELTRON_MODEL_TYPE). Using m2m small model."; \
+				$(MAKE) download-model-m2m-small; \
+			fi; \
 		else \
 			echo "Model download skipped. Container may not work properly."; \
 		fi; \
 	fi
 	@echo "Building and starting services with docker-compose..."
-	@docker-compose up -d --build
+	@BABELTRON_MODEL_TYPE=$(BABELTRON_MODEL_TYPE) docker-compose up -d --build
 	@echo "Services started successfully. API available at http://localhost:8000"
 	@echo "API documentation available at http://localhost:8000/docs"
 
