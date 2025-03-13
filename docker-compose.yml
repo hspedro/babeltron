@@ -11,6 +11,7 @@ services:
       - ./models:/models
     environment:
       - MODEL_PATH=/models
+      - BABELTRON_MODEL_TYPE=${BABELTRON_MODEL_TYPE:-m2m100}
       - OTLP_MODE=otlp-grpc
       - OTEL_SERVICE_NAME=babeltron
       - OTLP_COLLECTOR_HOST=otel-collector

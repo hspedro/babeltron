@@ -76,7 +76,34 @@ make coverage
 ## Running locally
 
 ```bash
+# Run with default M2M100 model
+make serve
+
+# Set environment variables to use NLLB model
+export MODEL_TYPE=nllb
 make serve
 ```
 
-Will mostly do the trick since it has auto-reload.
+The server has auto-reload enabled, so changes to the code will be reflected immediately.
+
+## Working with Different Model Types
+
+Babeltron supports two types of translation models:
+
+1. **M2M100** - Meta's Multilingual Machine Translation model
+2. **NLLB** (No Language Left Behind) - Meta's newer translation model with better support for low-resource languages
+
+When developing features that interact with the translation models, it's important to test with both model types:
+
+```bash
+# Download and test with M2M100 model
+make download-model-m2m-small
+make test
+
+# Download and test with NLLB model
+make download-model-nllb-small
+export MODEL_TYPE=nllb
+make test
+```
+
+Note that NLLB models use different language codes than M2M100 models. For example, "en" in M2M100 corresponds to "eng_Latn" in NLLB.

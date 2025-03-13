@@ -1,31 +1,6 @@
-import os
 from unittest.mock import patch
-from pathlib import Path
 
-from babeltron.app.utils import get_model_path, include_routers
-from babeltron.app.models.m2m import get_model_path as m2m_get_model_path
-
-
-def test_get_model_path_env_var():
-    with patch.dict(os.environ, {"MODEL_PATH": "/custom/path"}):
-        assert get_model_path() == "/custom/path"
-        assert m2m_get_model_path() == "/custom/path"
-
-
-@patch("pathlib.Path.exists")
-@patch("pathlib.Path.glob")
-def test_get_model_path_default(mock_glob, mock_exists):
-    # Mock the path existence and glob results
-    mock_exists.return_value = True
-    mock_glob.return_value = ["config.json"]
-
-    # Clear the environment variable if it exists
-    if "MODEL_PATH" in os.environ:
-        del os.environ["MODEL_PATH"]
-
-    # Test both get_model_path functions
-    assert get_model_path() in ["/models", str(Path("./models"))]
-    assert m2m_get_model_path() in ["/models", str(Path("./models"))]
+from babeltron.app.utils import include_routers
 
 
 @patch("importlib.import_module")

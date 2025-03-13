@@ -1,5 +1,10 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Any, List, Tuple
+
+from babeltron.app.config import ModelType
+
+BABELTRON_MODEL_TYPE = os.getenv("BABELTRON_MODEL_TYPE", ModelType.M2M100)
 
 
 class TranslationModelBase(ABC):
