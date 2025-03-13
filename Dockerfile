@@ -31,11 +31,12 @@ RUN chmod +x /app/docker-entrypoint.sh
 
 ENV PYTHONPATH=/app
 ENV MODEL_PATH=/models
+ENV PORT=8000
 
 # Create a non-root user and switch to it
 RUN useradd -m appuser
 USER appuser
 
-EXPOSE 8000
+EXPOSE ${PORT}
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
