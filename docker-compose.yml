@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: api
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:${PORT:-8000}"
     volumes:
       - ./models:/models
     environment:
@@ -17,9 +17,10 @@ services:
       - OTLP_COLLECTOR_PORT=4317
       - API_PASSWORD=translation2025
       - WORKER_COUNT=2
+      - PORT=${PORT:-8000}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3

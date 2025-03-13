@@ -100,11 +100,17 @@ After installing dependencies and downloading a model, you can run the API serve
 # Run the server in development mode with auto-reload
 make serve
 
+# Run with a custom port
+make serve PORT=8080
+
 # Or run in production mode (no auto-reload)
 make serve-prod
+
+# Run production mode with a custom port
+make serve-prod PORT=8080
 ```
 
-The API will be available at http://localhost:8000.
+The API will be available at http://localhost:8000 by default, or at the port you specified.
 
 ### API Usage Examples
 
@@ -155,9 +161,42 @@ The API will be available at http://localhost:8000.
 ### Stopping Docker Services
 
 ```bash
+# Run with M2M100 model (default)
+make docker-run
+
+# Run with NLLB model
+make docker-run MODEL_TYPE=nllb
+
+# Run with specific model size
+make docker-run MODEL_TYPE=nllb MODEL_SIZE=large
+
+# Run with a custom port
+make docker-run PORT=8080
+```
+
+### Using Docker Compose
+
+```bash
+# Start services with default port (8000)
+make docker-compose-up
+
+# Start services with custom port
+make docker-compose-up PORT=8080
+
 # Stop services
 make docker-down
 ```
+
+### Environment Variables
+
+The following environment variables can be used to configure the application:
+
+- `MODEL_PATH`: Path to the model directory (default: `./models`)
+- `MODEL_TYPE`: Type of model to use (`m2m` or `nllb`, default: `m2m`)
+- `MODEL_SIZE`: Size of model to use (`small`, `medium`, or `large`, default: `small`)
+- `PORT`: Port to run the API server on (default: `8000`)
+- `WORKER_COUNT`: Number of worker processes to use (default: `1`)
+- `BABELTRON_MODEL_TYPE`: Type of model to use in the API (`m2m100` or `nllb`, default: `m2m100`)
 
 ### Docker Volume Mounts
 

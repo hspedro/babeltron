@@ -4,6 +4,7 @@
 MODEL_PATH ?= ./models
 MODEL_SIZE ?= small
 IMAGE_NAME ?= babeltron
+PORT ?= 8000
 
 # Extract target descriptions from comments
 help: ## Show this help message
@@ -83,13 +84,13 @@ download-model-large: check-poetry ## Download large translation model (12B para
 	@poetry run python -m babeltron.scripts.download_models --size 12B --output-dir $(MODEL_PATH)
 
 # Add these commands to your Makefile
-serve: check-poetry ## Run the API server locally
-	@echo "Starting API server on http://localhost:8000..."
-	@poetry run uvicorn babeltron.app.main:app --reload --host 0.0.0.0 --port 8000
+serve: check-poetry ## Run the API server in development mode (with reload)
+	@echo "Starting API server in development mode on http://localhost:$(PORT)..."
+	@poetry run uvicorn babeltron.app.main:app --reload --host 0.0.0.0 --port $(PORT)
 
 serve-prod: check-poetry ## Run the API server in production mode (no reload)
-	@echo "Starting API server in production mode on http://localhost:8000..."
-	@poetry run uvicorn babeltron.app.main:app --host 0.0.0.0 --port 8000
+	@echo "Starting API server in production mode on http://localhost:$(PORT)..."
+	@poetry run uvicorn babeltron.app.main:app --host 0.0.0.0 --port $(PORT)
 
 # Docker commands
 docker-build: ## Build Docker image
@@ -129,7 +130,7 @@ docker-run: ## Run Docker container with model volume mount
 		fi; \
 	fi
 	@echo "Running Docker container..."
-	@docker run -p 8000:8000 -v $(shell pwd)/$(MODEL_PATH):/models $(IMAGE_NAME):latest
+	@docker run -p $(PORT):$(PORT) -v $(shell pwd)/$(MODEL_PATH):/models -e MODEL_PATH=/models -e BABELTRON_BABELTRON_MODEL_TYPE=$(BABELTRON_MODEL_TYPE) -e PORT=$(PORT) $(IMAGE_NAME):latest
 
 docker-up: ## Build and start services with docker-compose
 	@echo "Checking for model files..."
@@ -153,9 +154,19 @@ docker-down:
 	@echo "Stopping docker-compose services..."
 	@docker-compose down
 
+docker-compose-down: ## Stop Docker Compose services
+	@echo "Stopping Docker Compose services..."
+	@PORT=$(PORT) docker-compose down
+	@echo "Services stopped successfully."
+
 pre-commit-install:
 	pip install pre-commit
 	pre-commit install
 
 pre-commit-run:
 	pre-commit run --all-files
+
+docker-compose-up: ## Start services with Docker Compose
+	@echo "Starting services with Docker Compose..."
+	@PORT=$(PORT) docker-compose up -d
+	@echo "Services started successfully. API is available at http://localhost:$(PORT)/api/docs"
