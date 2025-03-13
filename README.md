@@ -5,7 +5,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](https://github.com/hspedro/babeltron/actions/workflows/test.yml)
 
-A Python-based REST API that leverages single multilingual models like mBERT to
+A Python-based REST API that leverages powerful multilingual translation models (M2M100 and NLLB) to
 provide efficient text translation services. Babeltron exposes a simple interface
 for translating text between multiple languages, making powerful neural machine
 translation accessible through straightforward API endpoints.
@@ -14,6 +14,9 @@ translation accessible through straightforward API endpoints.
 
 - Receives a text, source language and destination language, then returns the text
   translated
+- Supports two powerful translation models:
+  - **M2M100**: Supports 100+ languages
+  - **NLLB (No Language Left Behind)**: Supports 200+ languages, including many low-resource languages
 
 ## Requirements
 
@@ -71,26 +74,61 @@ The project uses a `.coveragerc` file to configure coverage settings. This ensur
 
 ## Downloading Translation Models
 
-Babeltron requires a translation model to function. You can download models of different sizes depending on your needs and hardware constraints:
+Babeltron supports two types of translation models: M2M100 and NLLB (No Language Left Behind). You can download models of different sizes depending on your needs and hardware constraints:
+
+### M2M100 Models
 
 ```bash
-# Download the small model (418M parameters, ~1GB disk space)
-make download-model
+# Download the small M2M100 model (418M parameters, ~1GB disk space)
+make download-model-m2m-small
 
-# Or download medium model (1.2B parameters, ~2.5GB disk space)
-make download-model-medium
+# Or download medium M2M100 model (1.2B parameters, ~2.5GB disk space)
+make download-model-m2m-medium
 
-# Or download large model (12B parameters, ~24GB disk space)
-make download-model-large
+# Or download large M2M100 model (12B parameters, ~24GB disk space)
+make download-model-m2m-large
 ```
+
+### NLLB Models
+
+```bash
+# Download the small NLLB model (600M parameters, ~1.2GB)
+make download-model-nllb-small
+
+# Or download large NLLB model (3.3B parameters, ~6.6GB)
+make download-model-nllb-large
+```
+
+For backward compatibility, `make download-model` will download the small M2M100 model.
 
 ### Model Size Considerations
 
+#### M2M100 Models
 - **Small (418M)**: ~1GB disk space, less memory required, faster but less accurate
 - **Medium (1.2B)**: ~2.5GB disk space, moderate memory requirements
 - **Large (12B)**: ~24GB disk space, requires significant RAM/GPU memory
 
-Choose based on your hardware constraints and translation quality requirements.
+#### NLLB Models
+- **Small (600M)**: ~1.2GB disk space, less memory required, faster but less accurate
+- **Large (3.3B)**: ~6.6GB disk space, requires significant RAM/GPU memory
+
+Choose based on your hardware constraints and translation quality requirements. NLLB models generally provide better translation quality for low-resource languages compared to M2M100.
+
+### Language Support
+
+#### M2M100
+Supports 100+ languages with ISO language codes like "en", "fr", "es", etc.
+
+#### NLLB (No Language Left Behind)
+Supports 200+ languages with FLORES-200 language codes that include both language and script information, such as:
+- "eng_Latn" (English, Latin script)
+- "fra_Latn" (French, Latin script)
+- "zho_Hans" (Chinese, Simplified Han script)
+- "ara_Arab" (Arabic, Arabic script)
+
+NLLB includes many low-resource languages not available in other translation models, making it particularly valuable for global accessibility. The full list of supported languages can be found in the [FLORES-200 dataset documentation](https://github.com/facebookresearch/flores/blob/main/flores200/README.md).
+
+When using NLLB, you must use the FLORES-200 language codes. For convenience, Babeltron also supports common ISO codes (like "en", "fr") and will automatically convert them to the corresponding FLORES-200 codes.
 
 ## Running the API Server
 
@@ -117,7 +155,7 @@ The API will be available at http://localhost:8000 by default, or at the port yo
 Once the server is running, you can use the translation API:
 
 ```bash
-# Translate text from English to Spanish
+# Translate text from English to Spanish using M2M100 (default)
 curl -X POST "http://localhost:8000/api/v1/translate" \
   -H "Content-Type: application/json" \
   -d '{
@@ -128,7 +166,32 @@ curl -X POST "http://localhost:8000/api/v1/translate" \
 
 # Response:
 # {"translation":"Hola, ¿cómo estás?"}
+
+# Translate text with NLLB model using FLORES-200 language codes
+curl -X POST "http://localhost:8000/api/v1/translate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Hello, how are you?",
+    "src_lang": "eng_Latn",
+    "tgt_lang": "spa_Latn",
+    "model_type": "nllb"
+  }'
+
+# Response:
+# {"translation":"Hola, ¿cómo estás?"}
+
+# Translate to a low-resource language (Yoruba) using NLLB
+curl -X POST "http://localhost:8000/api/v1/translate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Hello, how are you?",
+    "src_lang": "eng_Latn",
+    "tgt_lang": "yor_Latn",
+    "model_type": "nllb"
+  }'
 ```
+
+Note: NLLB models use different language codes than M2M100 models. For example, "en" in M2M100 corresponds to "eng_Latn" in NLLB. Babeltron will attempt to convert common ISO codes to FLORES-200 codes when using NLLB.
 
 You can also access the interactive API documentation at http://localhost:8000/docs.
 
@@ -152,13 +215,33 @@ Babeltron can be run as a Docker container, which simplifies deployment and isol
 ### Building and Running with Docker
 
 ```bash
-# Start services with Docker Compose
+# Start services with Docker Compose using M2M100 model (default)
 make docker-up
+
+# Start services with Docker Compose using NLLB model
+make docker-up MODEL_TYPE=nllb
+
+# You can also specify the model size
+make docker-up MODEL_TYPE=nllb MODEL_SIZE=large
 ```
 
 The API will be available at http://localhost:8000.
 
-### Stopping Docker Services
+### Building Docker Images with Embedded Models
+
+You can build Docker images with models embedded:
+
+```bash
+# Build with small M2M100 model (default)
+make docker-build-with-model
+
+# Build with large NLLB model
+make docker-build-with-model MODEL_TYPE=nllb MODEL_SIZE=large
+```
+
+The resulting image will be tagged as `babeltron:m2m-small` or `babeltron:nllb-large` accordingly.
+
+### Running Docker Containers
 
 ```bash
 # Run with M2M100 model (default)
@@ -184,7 +267,7 @@ make docker-compose-up
 make docker-compose-up PORT=8080
 
 # Stop services
-make docker-down
+make docker-compose-down
 ```
 
 ### Environment Variables
@@ -203,10 +286,10 @@ The following environment variables can be used to configure the application:
 The Docker setup mounts the local `./models` directory to `/models` inside the container. This allows you to:
 
 1. Reuse downloaded models between container restarts
-2. Use different model sizes without rebuilding the image
+2. Use different model types and sizes without rebuilding the image
 3. Persist models even if the container is removed
 
-If no models are found when starting the container, you'll be prompted to download the small model automatically.
+If no models are found when starting the container, you'll be prompted to download the model specified by the `MODEL_TYPE` and `MODEL_SIZE` variables (defaults to small M2M100 model).
 
 ## Distributed Tracing
 

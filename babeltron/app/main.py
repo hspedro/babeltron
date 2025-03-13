@@ -1,149 +1,70 @@
-import importlib.metadata
 import logging
-import os
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 
-from babeltron.app.middlewares.auth import BasicAuthMiddleware
-from babeltron.app.models.m2m import M2MTranslationModel
+from babeltron.app.config import LOG_LEVEL
 from babeltron.app.monitoring import PrometheusMiddleware, metrics_endpoint
-from babeltron.app.tracing import setup_jaeger
-from babeltron.app.utils import include_routers
+from babeltron.app.routers import healthcheck, translate
+from babeltron.version import __version__
 
-# Get version from package metadata
-try:
-    __version__ = importlib.metadata.version("babeltron")
-except importlib.metadata.PackageNotFoundError:
-    # If package is not installed, try to get version from pyproject.toml
-    try:
-        import tomli
+# Configure logging
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 
-        with open("pyproject.toml", "rb") as f:
-            pyproject = tomli.load(f)
-            __version__ = pyproject["project"]["version"]
-    except (FileNotFoundError, KeyError, ImportError):
-        __version__ = "dev"
+# Create the FastAPI app
+app = FastAPI(
+    title="Babeltron Translation API",
+    description="API for translating text between languages using neural machine translation models",
+    version=__version__,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+)
+
+# Add Prometheus middleware
+app.add_middleware(PrometheusMiddleware)
+
+# Include routers
+app.include_router(translate.router, prefix="/api/v1")
+app.include_router(healthcheck.router, prefix="/api/v1")
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(
-        title="Babeltron Translation API",
-        description="""
-        A multilingual translation API.
+@app.get("/", include_in_schema=False)
+async def root():
+    """Redirect to API documentation"""
+    return RedirectResponse(url="/api/docs")
 
-        ## Authentication
 
-        This API uses Basic Authentication. Include an Authorization header with your requests:
+@app.get("/api", include_in_schema=False)
+async def api_root():
+    """Redirect to API documentation"""
+    return RedirectResponse(url="/api/docs")
 
-        ```
-        Authorization: Basic <base64-encoded-credentials>
-        ```
 
-        Where `<base64-encoded-credentials>` is the Base64 encoding of `username:password`.
-        """,
-        version=__version__,
-        contact={
-            "name": "Pedro Soares",
-            "url": "https://github.com/hspedro",
-            "email": "pedrofigueiredoc@gmail.com",
-        },
-        license_info={
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT",
-        },
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
-        root_path="/api/v1",
+@app.get("/metrics", include_in_schema=False)
+async def metrics():
+    """Prometheus metrics endpoint"""
+    return PlainTextResponse(content=metrics_endpoint())
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler for unhandled exceptions"""
+    logging.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected error occurred. Please try again later."},
     )
-
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    if (api_username := os.environ.get("API_USERNAME")) and (
-        api_password := os.environ.get("API_PASSWORD")
-    ):
-        app.add_middleware(
-            BasicAuthMiddleware,
-            username=api_username,
-            password=api_password,
-            exclude_paths=[
-                "/docs",
-                "/redoc",
-                "/openapi.json",
-                "/healthz",
-                "/readyz",
-                "/metrics",
-                "/version",  # Add version endpoint to excluded paths
-                "/version-badge",  # Add version badge endpoint to excluded paths
-            ],
-        )
-
-    # Set up Jaeger tracing
-    setup_jaeger(app)
-
-    # Include all routers
-    include_routers(app)
-
-    # Add Prometheus middleware
-    app.add_middleware(PrometheusMiddleware)
-
-    # Add version endpoint for badge
-    @app.get("/version", response_class=PlainTextResponse, include_in_schema=False)
-    async def get_version():
-        return __version__
-
-    # Add version badge endpoint for Shields.io
-    @app.get("/version-badge", response_class=JSONResponse, include_in_schema=False)
-    async def get_version_badge():
-        return {
-            "schemaVersion": 1,
-            "label": "version",
-            "message": __version__,
-            "color": "green",
-            "cacheSeconds": 3600,  # Cache for 1 hour
-        }
-
-    @app.get("/healthz", include_in_schema=False)
-    async def health():
-        return {"status": "ok"}
-
-    @app.get("/readyz", include_in_schema=False)
-    async def ready():
-        # Check if model is loaded
-        try:
-            # Just initialize the model to check if it loads correctly
-            M2MTranslationModel()
-            return {"status": "ready"}
-        except Exception as e:
-            logging.error(f"Readiness check failed: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Service not ready",
-            )
-
-    @app.get("/metrics", include_in_schema=False)
-    async def metrics():
-        return PlainTextResponse(content=metrics_endpoint())
-
-    return app
-
-
-app = create_app()
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    log_config = uvicorn.config.LOGGING_CONFIG
-    log_config["formatters"]["access"][
-        "fmt"
-    ] = "%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] [trace_id=%(otelTraceID)s span_id=%(otelSpanID)s] - %(message)s"
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_config=log_config)

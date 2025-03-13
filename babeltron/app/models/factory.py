@@ -1,34 +1,36 @@
-from typing import Dict, Type
+import logging
+from typing import Dict
 
+from babeltron.app.config import ModelType
 from babeltron.app.models.base import TranslationModelBase
-from babeltron.app.models.m2m import M2MTranslationModel
+from babeltron.app.models.m2m100 import get_translation_model as get_m2m100_model
+from babeltron.app.models.nllb import get_translation_model as get_nllb_model
+
+# Registry of model types to their factory functions
+MODEL_REGISTRY: Dict[str, callable] = {
+    ModelType.M2M100: get_m2m100_model,
+    ModelType.NLLB: get_nllb_model,
+}
 
 
-class ModelFactory:
-    """Factory for creating translation model instances"""
+def get_translation_model(model_type: str = ModelType.M2M100) -> TranslationModelBase:
+    """
+    Factory function to get the appropriate translation model based on the model type.
 
-    _models: Dict[str, Type[TranslationModelBase]] = {
-        "m2m100": M2MTranslationModel,
-        # Add more models here as they are implemented
-        # "nllb": NLLBTranslationModel,
-        # "mbart": MBartTranslationModel,
-    }
+    Args:
+        model_type: The type of model to use (m2m100 or nllb)
 
-    @classmethod
-    def get_model(cls, model_type: str = "m2m100") -> TranslationModelBase:
-        """
-        Get a translation model instance of the specified type.
+    Returns:
+        An instance of the appropriate translation model
 
-        Args:
-            model_type: The type of model to create. If None, uses the MODEL_TYPE env var
-                       or defaults to "m2m100"
+    Raises:
+        ValueError: If the model type is not supported
+    """
+    if model_type not in MODEL_REGISTRY:
+        supported_models = ", ".join(MODEL_REGISTRY.keys())
+        raise ValueError(
+            f"Unsupported model type: {model_type}. Supported types: {supported_models}"
+        )
 
-        Returns:
-            An instance of the requested translation model
-        """
-        if model_type not in cls._models:
-            raise ValueError(
-                f"Unknown model type: {model_type}. Available types: {list(cls._models.keys())}"
-            )
-
-        return cls._models[model_type]()
+    logging.info(f"Creating translation model of type: {model_type}")
+    return MODEL_REGISTRY[model_type]()

@@ -1,91 +1,103 @@
 import os
 import sys
-import pytest
 import warnings
+from pathlib import Path
 from unittest.mock import MagicMock
-# Import our mock module
-from tests.mocks.opentelemetry import (
-    trace as mock_trace,
-    MockOTLPSpanExporterGRPC,
-    MockOTLPSpanExporterHTTP,
-    MockBatchSpanProcessor,
-)
 
-# Set environment variables to disable telemetry for tests
-os.environ["OTLP_GRPC_ENDPOINT"] = "disabled"
+import pytest
+from fastapi.testclient import TestClient
+
+# Add the project root to the Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# Import the app after setting up the path
+from babeltron.app.main import app  # noqa: E402
+
+# Set up environment variables for testing
+os.environ["MODEL_PATH"] = "/models"
 os.environ["OTLP_MODE"] = "disabled"  # Disable actual tracing in tests
 os.environ["JAEGER_AGENT_HOST"] = "localhost"  # Use localhost for Jaeger agent
 
 
-class MockOpenTelemetry:
-    def __getattr__(self, name):
-        if name == "trace":
-            return mock_trace
-        return MagicMock()
+@pytest.fixture
+def client():
+    """
+    Create a test client for the FastAPI app.
+    """
+    with TestClient(app) as test_client:
+        yield test_client
 
 
-# Create a mock Jaeger exporter
-class MockJaegerExporter:
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
-
-    def export(self, spans):
-        # Just return success without actually exporting
-        return True
-
-    def shutdown(self):
-        pass
-
-
-@pytest.fixture(autouse=True, scope="session")
-def mock_opentelemetry():
-    # Replace the entire opentelemetry module with our mock
-    sys.modules["opentelemetry"] = MockOpenTelemetry()
-    sys.modules["opentelemetry.trace"] = mock_trace
-
-    # Also mock any submodules that might be imported directly
-    sys.modules["opentelemetry.sdk"] = MagicMock()
-    sys.modules["opentelemetry.sdk.trace"] = MagicMock()
-    sys.modules["opentelemetry.instrumentation"] = MagicMock()
-    sys.modules["opentelemetry.instrumentation.fastapi"] = MagicMock()
-    sys.modules["opentelemetry.instrumentation.logging"] = MagicMock()
-
-    # Mock the exporters
-    sys.modules["opentelemetry.exporter.otlp.proto.grpc.trace_exporter"] = MagicMock()
-    sys.modules["opentelemetry.exporter.otlp.proto.grpc.trace_exporter"].OTLPSpanExporter = MockOTLPSpanExporterGRPC
-
-    sys.modules["opentelemetry.exporter.otlp.proto.http.trace_exporter"] = MagicMock()
-    sys.modules["opentelemetry.exporter.otlp.proto.http.trace_exporter"].OTLPSpanExporter = MockOTLPSpanExporterHTTP
-
-    # Mock the Jaeger exporter
-    sys.modules["opentelemetry.exporter.jaeger"] = MagicMock()
-    sys.modules["opentelemetry.exporter.jaeger.thrift"] = MagicMock()
-    sys.modules["opentelemetry.exporter.jaeger.thrift"].JaegerExporter = MockJaegerExporter
-
-    sys.modules["opentelemetry.sdk.trace.export"] = MagicMock()
-    sys.modules["opentelemetry.sdk.trace.export"].BatchSpanProcessor = MockBatchSpanProcessor
-    sys.modules["opentelemetry.sdk.trace.export"].ConsoleSpanExporter = MagicMock()
-
-    # Yield to allow tests to run
+@pytest.fixture
+def mock_env_vars():
+    """
+    Mock environment variables for testing.
+    """
+    original_environ = os.environ.copy()
+    os.environ["MODEL_PATH"] = "/models"
+    os.environ["LOG_LEVEL"] = "DEBUG"
     yield
-
-    # Clean up (optional, as pytest will terminate after tests)
-    if "opentelemetry" in sys.modules:
-        del sys.modules["opentelemetry"]
-    if "opentelemetry.trace" in sys.modules:
-        del sys.modules["opentelemetry.trace"]
+    os.environ.clear()
+    os.environ.update(original_environ)
 
 
-# Reset any singleton models between tests
+@pytest.fixture
+def mock_model():
+    """
+    Create a mock translation model for testing.
+    """
+    mock = MagicMock()
+    mock.translate.return_value = "Translated text"
+    mock.is_loaded = True
+    mock.architecture = "cpu_standard"
+    return mock
+
+
+@pytest.fixture
+def mock_tokenizer():
+    """
+    Create a mock tokenizer for testing.
+    """
+    mock = MagicMock()
+    mock.lang_code_to_id = {"en": 0, "fr": 1, "es": 2, "de": 3}
+    mock.get_lang_id.side_effect = lambda x: mock.lang_code_to_id.get(x, 0)
+    mock.batch_decode.return_value = ["Translated text"]
+    return mock
+
+
+@pytest.fixture
+def mock_torch():
+    """
+    Create a mock torch module for testing.
+    """
+    mock = MagicMock()
+    mock.cuda.is_available.return_value = False
+    mock.device.return_value = "cpu"
+    return mock
+
+
 @pytest.fixture(autouse=True)
 def reset_singletons():
+    """
+    Reset singleton instances between tests.
+    """
     # Import here to avoid circular imports
-    from babeltron.app.models.m2m import M2MTranslationModel
+    try:
+        from babeltron.app.models.m2m100 import M2M100TranslationModel
+        if hasattr(M2M100TranslationModel, "_instance"):
+            M2M100TranslationModel._instance = None
+            warnings.warn("Reset M2M100TranslationModel singleton")
+    except ImportError:
+        warnings.warn("Could not import M2M100TranslationModel")
 
-    # Reset the singleton instance
-    if hasattr(M2MTranslationModel, "_instance"):
-        M2MTranslationModel._instance = None
+    try:
+        from babeltron.app.models.nllb import NLLBTranslationModel
+        if hasattr(NLLBTranslationModel, "_instance"):
+            NLLBTranslationModel._instance = None
+            warnings.warn("Reset NLLBTranslationModel singleton")
+    except ImportError:
+        warnings.warn("Could not import NLLBTranslationModel")
 
     yield
 

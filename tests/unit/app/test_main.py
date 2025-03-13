@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 from fastapi import FastAPI
 
 from babeltron.app.main import app
@@ -13,11 +11,9 @@ class TestMainApp:
         assert isinstance(app, FastAPI)
         assert app.title == "Babeltron Translation API"
 
-    @patch("babeltron.app.main.include_routers")
-    def test_app_initialization(self, mock_include_routers):
+    def test_app_initialization(self):
         """Test that the app is initialized correctly."""
         assert app.title == "Babeltron Translation API"
 
-        # We can't directly verify that include_routers was called since it happens
-        # during import, but we can check that the app has routes
+        # Check that the app has routes
         assert len(app.routes) > 0

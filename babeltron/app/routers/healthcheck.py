@@ -4,20 +4,21 @@ from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from babeltron.app.main import __version__
-from babeltron.app.models.factory import ModelFactory
+from babeltron.app.config import BABELTRON_MODEL_TYPE
+from babeltron.app.models.factory import get_translation_model
+from babeltron.version import __version__
 
-router = APIRouter()
+router = APIRouter(tags=["Control"])
 
 # Get the default translation model
-translation_model = ModelFactory.get_model()
+translation_model = get_translation_model(BABELTRON_MODEL_TYPE)
 
 
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
     model_architecture: Optional[str] = None
-    version: Optional[str] = None
+    version: str
 
 
 @router.get(
@@ -40,8 +41,7 @@ async def healthcheck():
 
 class ReadinessResponse(BaseModel):
     status: str
-    version: Optional[str] = None
-    error: Optional[str] = None
+    version: str
     model_architecture: Optional[str] = None
 
 

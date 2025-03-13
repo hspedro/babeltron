@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from fastapi import status
 
 from babeltron.app.main import app
-from babeltron.app.models.m2m import ModelArchitecture
+from babeltron.app.models.m2m100 import ModelArchitecture
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def test_healthcheck_model_loaded(mock_model, client):
     mock_model.is_loaded = True
     mock_model.architecture = ModelArchitecture.CPU_STANDARD
 
-    response = client.get("/healthz")
+    response = client.get("/api/v1/healthz")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["status"] == "ok"
@@ -33,7 +33,7 @@ def test_healthcheck_model_not_loaded(mock_model, client):
     mock_model.is_loaded = False
     mock_model.architecture = None
 
-    response = client.get("/healthz")
+    response = client.get("/api/v1/healthz")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["status"] == "ok"
@@ -49,7 +49,7 @@ def test_readiness_model_loaded(mock_model, client):
     mock_model.architecture = ModelArchitecture.CPU_STANDARD
     mock_model.translate.return_value = "bonjour"
 
-    response = client.get("/readyz")
+    response = client.get("/api/v1/readyz")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["status"] == "ready"
@@ -62,7 +62,7 @@ def test_readiness_model_not_loaded(mock_model, client):
     # Mock the model as not loaded
     mock_model.is_loaded = False
 
-    response = client.get("/readyz")
+    response = client.get("/api/v1/readyz")
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
     data = response.json()
     assert data["status"] == "not ready"
@@ -76,7 +76,7 @@ def test_readiness_model_error(mock_model, client):
     mock_model.is_loaded = True
     mock_model.translate.side_effect = Exception("Test error")
 
-    response = client.get("/readyz")
+    response = client.get("/api/v1/readyz")
     assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
     data = response.json()
     assert data["status"] == "not ready"
