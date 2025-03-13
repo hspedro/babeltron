@@ -402,7 +402,7 @@ Install pre-commit hooks with `make pre-commit-install` and refer to the [CONTRI
 
 For a detailed technical overview of the system architecture, including diagrams and component interactions, please refer to our [Architecture Documentation](docs/architecture.md).
 
-![Babeltron Overview](images/overview.png)
+![Babeltron Overview](docs/images/overview.png)
 
 ## License
 
