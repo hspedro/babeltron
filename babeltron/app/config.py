@@ -4,9 +4,11 @@ import os
 class ModelType:
     M2M100 = "m2m100"
     NLLB = "nllb"
+    LINGUA = "lingua"
 
 
 BABELTRON_MODEL_TYPE = os.getenv("BABELTRON_MODEL_TYPE", ModelType.M2M100)
+DETECTION_MODEL_TYPE = os.getenv("DETECTION_MODEL_TYPE", ModelType.LINGUA)
 MODEL_PATH = os.getenv("MODEL_PATH", "./models")
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 IN_TEST = os.environ.get("PYTEST_CURRENT_TEST") is not None

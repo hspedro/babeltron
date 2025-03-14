@@ -2,13 +2,13 @@ import pytest
 from unittest.mock import MagicMock, patch
 import torch
 
-from babeltron.app.models.m2m100 import M2M100TranslationModel, ModelArchitecture, get_translation_model
+from babeltron.app.models.translation.nllb import NLLBTranslationModel, ModelArchitecture, get_translation_model
 
 
-class TestM2M100TranslationModel:
+class TestNLLBTranslationModel:
     @pytest.fixture(autouse=True)
     def mock_torch(self):
-        with patch("babeltron.app.models.m2m100.torch") as mock_torch:
+        with patch("babeltron.app.models.translation.nllb.torch") as mock_torch:
             mock_torch.cuda.is_available.return_value = False
             mock_torch.tensor = torch.tensor
             mock_torch.compile.return_value = MagicMock()
@@ -16,10 +16,20 @@ class TestM2M100TranslationModel:
 
     @pytest.fixture
     def mock_transformers(self):
-        with patch("babeltron.app.models.m2m100.M2M100ForConditionalGeneration") as mock_model:
-            with patch("babeltron.app.models.m2m100.M2M100Tokenizer") as mock_tokenizer:
+        with patch("babeltron.app.models.translation.nllb.AutoModelForSeq2SeqLM") as mock_model:
+            with patch("babeltron.app.models.translation.nllb.AutoTokenizer") as mock_tokenizer:
                 tokenizer_instance = MagicMock()
-                tokenizer_instance.lang_code_to_id = {"en": 0, "fr": 1, "es": 2, "de": 3}
+                tokenizer_instance.lang_code_to_id = {
+                    "eng_Latn": 0,
+                    "fra_Latn": 1,
+                    "spa_Latn": 2,
+                    "deu_Latn": 3
+                }
+                tokenizer_instance.additional_special_tokens = [
+                    "eng_Latn", "fra_Latn", "spa_Latn", "deu_Latn",
+                    "ita_Latn", "por_Latn", "rus_Cyrl", "zho_Hans",
+                    "jpn_Jpan", "ara_Arab", "hin_Deva", "kor_Hang"
+                ]
                 tokenizer_instance.batch_decode.return_value = ["Bonjour le monde"]
                 mock_tokenizer.from_pretrained.return_value = tokenizer_instance
 
@@ -34,11 +44,11 @@ class TestM2M100TranslationModel:
                     "tokenizer_instance": tokenizer_instance,
                 }
 
-    @patch("babeltron.app.models.m2m100.get_model_path")
+    @patch("babeltron.app.models.translation.nllb.get_model_path")
     def test_load_model_standard(self, mock_get_path, mock_transformers, mock_torch):
         mock_get_path.return_value = "/models"
 
-        model = M2M100TranslationModel()
+        model = NLLBTranslationModel()
         model._initialized = True
 
         mock_transformers["model_class"].from_pretrained.return_value = mock_transformers["model_instance"]
@@ -57,11 +67,11 @@ class TestM2M100TranslationModel:
 
         assert model._architecture == ModelArchitecture.CPU_STANDARD
 
-    @patch("babeltron.app.models.m2m100.get_model_path")
+    @patch("babeltron.app.models.translation.nllb.get_model_path")
     def test_load_model_cpu_compiled(self, mock_get_path, mock_transformers, mock_torch):
         mock_get_path.return_value = "/models"
 
-        model = M2M100TranslationModel()
+        model = NLLBTranslationModel()
         model._initialized = True  # Prevent auto-loading
 
         mock_transformers["model_class"].from_pretrained.return_value = mock_transformers["model_instance"]
@@ -80,13 +90,13 @@ class TestM2M100TranslationModel:
 
         assert model._architecture == ModelArchitecture.CPU_COMPILED
 
-    @patch("babeltron.app.models.m2m100.get_model_path")
-    @patch.object(M2M100TranslationModel, "load")  # Patch the load method
+    @patch("babeltron.app.models.translation.nllb.get_model_path")
+    @patch.object(NLLBTranslationModel, "load")  # Patch the load method
     def test_translate(self, mock_load, mock_get_path, mock_transformers):
         mock_load.return_value = (None, None, None)
         mock_get_path.return_value = "/models"
 
-        model = M2M100TranslationModel()
+        model = NLLBTranslationModel()
         model._initialized = True  # Prevent auto-loading
 
         model._model = mock_transformers["model_instance"]
@@ -96,54 +106,60 @@ class TestM2M100TranslationModel:
         with patch.object(model, '_translate_cpu', return_value="Bonjour le monde"):
             result = model.translate("Hello world", "en", "fr")
             assert result == "Bonjour le monde"
-            model._translate_cpu.assert_called_once_with("Hello world", "en", "fr", None)
+            model._translate_cpu.assert_called_once_with("Hello world", "eng_Latn", "fra_Latn", None)
 
-    @patch("babeltron.app.models.m2m100.get_model_path")
-    @patch.object(M2M100TranslationModel, "load")  # Patch the load method
+    @patch("babeltron.app.models.translation.nllb.get_model_path")
+    @patch.object(NLLBTranslationModel, "load")  # Patch the load method
     def test_translate_model_not_loaded(self, mock_load, mock_get_path):
         mock_load.return_value = (None, None, None)
         mock_get_path.return_value = "/models"
 
-        model = M2M100TranslationModel()
+        model = NLLBTranslationModel()
         model._initialized = True  # Prevent auto-loading
+        model._model = None  # Explicitly set model to None
+        model._tokenizer = None  # Explicitly set tokenizer to None
 
         with pytest.raises(ValueError, match="Model not loaded"):
             model.translate("Hello world", "en", "fr")
 
-    @patch("babeltron.app.models.m2m100.get_model_path")
-    @patch.object(M2M100TranslationModel, "load")  # Patch the load method
+    @patch("babeltron.app.models.translation.nllb.get_model_path")
+    @patch.object(NLLBTranslationModel, "load")  # Patch the load method
     def test_get_languages(self, mock_load, mock_get_path, mock_transformers):
         mock_load.return_value = (None, None, None)
         mock_get_path.return_value = "/models"
 
-        model = M2M100TranslationModel()
+        model = NLLBTranslationModel()
         model._initialized = True  # Prevent auto-loading
         model._tokenizer = mock_transformers["tokenizer_instance"]
 
         languages = model.get_languages()
 
-        assert set(languages) == {"en", "fr", "es", "de"}
+        expected_languages = set(mock_transformers["tokenizer_instance"].additional_special_tokens)
+        assert set(languages) == expected_languages, \
+            f"Expected languages from tokenizer, got different set. Difference: {set(languages).symmetric_difference(expected_languages)}"
 
-    @patch("babeltron.app.models.m2m100.get_model_path")
+    @patch("babeltron.app.models.translation.nllb.get_model_path")
     def test_get_languages_model_not_loaded(self, mock_get_path):
         mock_get_path.return_value = "/models"
 
-        model = M2M100TranslationModel()
+        model = NLLBTranslationModel()
         model._initialized = True  # Prevent auto-loading
+        model._model = None  # Explicitly set model to None
+        model._tokenizer = None  # Explicitly set tokenizer to None
 
         with pytest.raises(ValueError, match="Model not loaded"):
             model.get_languages()
 
-    @patch("babeltron.app.models.m2m100.get_model_path")
-    @patch.object(M2M100TranslationModel, "load")  # Patch the load method
+    @patch("babeltron.app.models.translation.nllb.get_model_path")
+    @patch.object(NLLBTranslationModel, "load")  # Patch the load method
     def test_properties(self, mock_load, mock_get_path, mock_transformers):
         mock_load.return_value = (None, None, None)
         mock_get_path.return_value = "/models"
 
-        if hasattr(M2M100TranslationModel, "_instance"):
-            M2M100TranslationModel._instance = None
+        if hasattr(NLLBTranslationModel, "_instance"):
+            NLLBTranslationModel._instance = None
 
-        model = M2M100TranslationModel()
+        model = NLLBTranslationModel()
         model._initialized = True  # Prevent auto-loading
         model._model = mock_transformers["model_instance"]
         model._tokenizer = mock_transformers["tokenizer_instance"]
@@ -157,18 +173,18 @@ class TestM2M100TranslationModel:
         model._model = None
         assert model.is_loaded is False
 
-    @patch("babeltron.app.models.m2m100.get_model_path")
-    @patch.object(M2M100TranslationModel, "load")  # Patch the load method
+    @patch("babeltron.app.models.translation.nllb.get_model_path")
+    @patch.object(NLLBTranslationModel, "load")  # Patch the load method
     def test_singleton_pattern(self, mock_load, mock_get_path, mock_transformers):
         mock_load.return_value = (None, None, None)
         mock_get_path.return_value = "/models"
 
-        if hasattr(M2M100TranslationModel, "_instance"):
-            M2M100TranslationModel._instance = None
+        if hasattr(NLLBTranslationModel, "_instance"):
+            NLLBTranslationModel._instance = None
 
-        model1 = M2M100TranslationModel()
+        model1 = NLLBTranslationModel()
         model1._initialized = True  # Prevent auto-loading
-        model2 = M2M100TranslationModel()
+        model2 = NLLBTranslationModel()
 
         assert model1 is model2
 
@@ -178,11 +194,41 @@ class TestM2M100TranslationModel:
         assert model2._model is mock_transformers["model_instance"]
         assert model2._tokenizer is mock_transformers["tokenizer_instance"]
 
+    @patch("babeltron.app.models.translation.nllb.get_model_path")
+    def test_convert_lang_code(self, mock_get_path):
+        mock_get_path.return_value = "/models"
+
+        model = NLLBTranslationModel()
+        model._initialized = True  # Prevent auto-loading
+
+        # Test common ISO code conversions
+        assert model._convert_lang_code("en") == "eng_Latn"
+        assert model._convert_lang_code("fr") == "fra_Latn"
+        assert model._convert_lang_code("zh") == "zho_Hans"
+
+        # Test some of the newly added ISO code conversions
+        assert model._convert_lang_code("nl") == "nld_Latn"
+        assert model._convert_lang_code("pl") == "pol_Latn"
+        assert model._convert_lang_code("tr") == "tur_Latn"
+        assert model._convert_lang_code("uk") == "ukr_Cyrl"
+        assert model._convert_lang_code("vi") == "vie_Latn"
+        assert model._convert_lang_code("sv") == "swe_Latn"
+        assert model._convert_lang_code("fi") == "fin_Latn"
+        assert model._convert_lang_code("cs") == "ces_Latn"
+        assert model._convert_lang_code("da") == "dan_Latn"
+        assert model._convert_lang_code("el") == "ell_Grek"
+
+        # Test already formatted code
+        assert model._convert_lang_code("eng_Latn") == "eng_Latn"
+
+        # Test unknown code
+        assert model._convert_lang_code("xx") == "xx"
+
 
 def test_get_translation_model():
-    with patch("babeltron.app.models.m2m100.M2M100TranslationModel.load", return_value=(None, None, None)):
+    with patch("babeltron.app.models.translation.nllb.NLLBTranslationModel.load", return_value=(None, None, None)):
         model = get_translation_model()
-        assert isinstance(model, M2M100TranslationModel)
+        assert isinstance(model, NLLBTranslationModel)
 
         model2 = get_translation_model()
         assert model is model2

@@ -7,7 +7,7 @@ import torch
 from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
 
 from babeltron.app.config import MODEL_PATH
-from babeltron.app.models.base import TranslationModelBase
+from babeltron.app.models.translation.base import TranslationModelBase
 
 
 def get_model_path() -> str:
@@ -370,13 +370,10 @@ class M2M100TranslationModel(TranslationModelBase):
             raise
 
     def get_languages(self) -> List[str]:
-        """Get list of supported languages"""
+        """Get a list of supported language codes"""
         if self._tokenizer is None:
             raise ValueError("Model not loaded. Please check logs for errors.")
-
-        lang_codes = self._tokenizer.lang_code_to_id
-
-        return list(lang_codes.keys())
+        return list(self._tokenizer.lang_code_to_id.keys())
 
     @property
     def model(self):
@@ -393,6 +390,10 @@ class M2M100TranslationModel(TranslationModelBase):
     @property
     def is_loaded(self):
         return self._model is not None and self._tokenizer is not None
+
+    @property
+    def model_type(self):
+        return "m2m100"
 
 
 def get_translation_model() -> M2M100TranslationModel:

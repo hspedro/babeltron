@@ -86,7 +86,7 @@ def reset_singletons():
     """
     # Import here to avoid circular imports
     try:
-        from babeltron.app.models.m2m100 import M2M100TranslationModel
+        from babeltron.app.models.translation.m2m100 import M2M100TranslationModel
         if hasattr(M2M100TranslationModel, "_instance"):
             M2M100TranslationModel._instance = None
             warnings.warn("Reset M2M100TranslationModel singleton")
@@ -94,7 +94,7 @@ def reset_singletons():
         warnings.warn("Could not import M2M100TranslationModel")
 
     try:
-        from babeltron.app.models.nllb import NLLBTranslationModel
+        from babeltron.app.models.translation.nllb import NLLBTranslationModel
         if hasattr(NLLBTranslationModel, "_instance"):
             NLLBTranslationModel._instance = None
             warnings.warn("Reset NLLBTranslationModel singleton")

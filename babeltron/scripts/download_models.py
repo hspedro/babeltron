@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to download translation models (M2M-100 or NLLB) for Babeltron.
+Script to download translation models for Babeltron.
 """
 import argparse
 import os

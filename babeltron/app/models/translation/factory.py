@@ -2,9 +2,13 @@ import logging
 from typing import Dict
 
 from babeltron.app.config import ModelType
-from babeltron.app.models.base import TranslationModelBase
-from babeltron.app.models.m2m100 import get_translation_model as get_m2m100_model
-from babeltron.app.models.nllb import get_translation_model as get_nllb_model
+from babeltron.app.models.translation.base import TranslationModelBase
+from babeltron.app.models.translation.m2m100 import (
+    get_translation_model as get_m2m100_model,
+)
+from babeltron.app.models.translation.nllb import (
+    get_translation_model as get_nllb_model,
+)
 
 # Registry of model types to their factory functions
 MODEL_REGISTRY: Dict[str, callable] = {

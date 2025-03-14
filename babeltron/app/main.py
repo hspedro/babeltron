@@ -12,7 +12,7 @@ from babeltron.app.config import (
 )
 from babeltron.app.middlewares.auth import BasicAuthMiddleware
 from babeltron.app.monitoring import PrometheusMiddleware, metrics_endpoint
-from babeltron.app.routers import healthcheck, translate
+from babeltron.app.routers import detect, healthcheck, translate
 from babeltron.version import __version__
 
 # Configure logging
@@ -54,6 +54,7 @@ app.add_middleware(PrometheusMiddleware)
 # Include routers
 app.include_router(translate.router, prefix="/api/v1")
 app.include_router(healthcheck.router, prefix="/api/v1")
+app.include_router(detect.router, prefix="/api/v1")
 
 
 @app.get("/", include_in_schema=False)

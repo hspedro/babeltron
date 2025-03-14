@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from babeltron.app.config import BABELTRON_MODEL_TYPE
-from babeltron.app.models.factory import get_translation_model
+from babeltron.app.models.translation.factory import get_translation_model
 from babeltron.version import __version__
 
 router = APIRouter(tags=["Control"])

@@ -17,6 +17,10 @@ translation accessible through straightforward API endpoints.
 - Supports two powerful translation models:
   - **M2M100**: Supports 100+ languages
   - **NLLB (No Language Left Behind)**: Supports 200+ languages, including many low-resource languages
+- **Language Detection**: Automatically detects the language of text using the Lingua language detector, which is highly accurate even for short text snippets
+  - Lingua prioritizes quality over quantity, focusing on accurate detection rather than supporting every possible language
+  - Supports 75 different languages with high precision, even though the translation models accept 200+ languages
+  - Particularly effective for short texts and informal language, making it ideal for real-world applications
 
 ## Requirements
 
@@ -166,6 +170,41 @@ curl -X POST "http://localhost:8000/api/v1/translate" \
 
 # Response:
 # {"translation":"Hola, ¿cómo estás?"}
+
+# Translate text with automatic language detection
+curl -X POST "http://localhost:8000/api/v1/translate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Bonjour, comment ça va?",
+    "src_lang": "auto",
+    "tgt_lang": "en"
+  }'
+
+# Response:
+# {
+#   "translation": "Hello, how are you?",
+#   "model_type": "m2m100",
+#   "architecture": "cpu_compiled",
+#   "detected_lang": "fr",
+#   "detection_confidence": 0.98
+# }
+
+# You can also omit the source language entirely for automatic detection
+curl -X POST "http://localhost:8000/api/v1/translate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Hola, ¿cómo estás?",
+    "tgt_lang": "en"
+  }'
+
+# Response includes the detected language and confidence score
+# {
+#   "translation": "Hello, how are you?",
+#   "model_type": "m2m100",
+#   "architecture": "cpu_compiled",
+#   "detected_lang": "es",
+#   "detection_confidence": 0.95
+# }
 
 # Translate text with NLLB model using FLORES-200 language codes
 curl -X POST "http://localhost:8000/api/v1/translate" \
@@ -402,6 +441,69 @@ Install pre-commit hooks with `make pre-commit-install` and refer to the [CONTRI
 For a detailed technical overview of the system architecture, including diagrams and component interactions, please refer to our [Architecture Documentation](docs/architecture.md).
 
 ![Babeltron Overview](docs/images/overview.png)
+
+## Downloading Models
+
+Before using Babeltron, you need to download at least one model:
+
+### Translation Models
+
+```bash
+# Download the default M2M100 small model (418M parameters)
+make download-model-m2m-small
+
+# Download the M2M100 medium model (1.2B parameters)
+make download-model-m2m-medium
+
+# Download the M2M100 large model (12B parameters)
+make download-model-m2m-large
+
+# Download the NLLB small model (600M parameters)
+make download-model-nllb-small
+
+# Download the NLLB large model (3.3B parameters)
+make download-model-nllb-large
+```
+
+### Language Detection Model
+
+```bash
+# Download the XLM-RoBERTa model for language detection
+make download-model-xlm-roberta
+```
+
+## API Usage
+
+### Translation
+
+```bash
+curl -X POST "http://localhost:8000/translate" \
+     -H "Content-Type: application/json" \
+     -d '{"text": "Hello, how are you?", "source_lang": "en", "target_lang": "fr"}'
+```
+
+Response:
+```json
+{
+  "translated_text": "Bonjour, comment ça va ?"
+}
+```
+
+### Language Detection
+
+```bash
+curl -X POST "http://localhost:8000/detect" \
+     -H "Content-Type: application/json" \
+     -d '{"text": "Hello, how are you?"}'
+```
+
+Response:
+```json
+{
+  "language": "en",
+  "confidence": 0.98
+}
+```
 
 ## License
 
