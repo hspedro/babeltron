@@ -1,4 +1,4 @@
-.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-m2m-small download-model-m2m-medium download-model-m2m-large download-model-nllb download-model-nllb-small download-model-nllb-medium download-model-nllb-large serve serve-prod docker-build docker-run docker compose-up compose-down pre-commit-install pre-commit-run docker-build-with-model docker-up docker-down
+.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-m2m-small download-model-m2m-medium download-model-m2m-large download-model-nllb download-model-nllb-small download-model-nllb-medium download-model-nllb-large serve serve-prod docker-build docker-run docker compose-up compose-down pre-commit-install pre-commit-run docker-build-with-model docker-up docker-down test-cache test-cache-comprehensive
 
 # Define model path variable with default value, can be overridden by environment
 MODEL_PATH ?= ./models
@@ -242,3 +242,11 @@ docker compose-up: ## Start services with Docker Compose
 	@echo "Starting services with Docker Compose..."
 	@PORT=$(PORT) docker compose up -d
 	@echo "Services started successfully. API is available at http://localhost:$(PORT)/api/docs"
+
+test-cache: ## Run basic cache end-to-end tests
+	@echo "Running basic cache end-to-end tests..."
+	@BABELTRON_MODEL_TYPE=m2m100 ./tests/e2e_cache_test.sh
+
+test-cache-comprehensive: ## Run comprehensive cache end-to-end tests
+	@echo "Running comprehensive cache end-to-end tests..."
+	@BABELTRON_MODEL_TYPE=m2m100 ./tests/e2e_cache_comprehensive_test.sh

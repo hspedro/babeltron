@@ -1,3 +1,4 @@
+import json
 import logging
 from functools import wraps
 from typing import Any, Optional
@@ -75,6 +76,22 @@ class ValkeyCache(CacheInterface):
             value: The value to cache
             ttl: Time to live in seconds
         """
+        # Serialize complex data types to JSON string
+        if isinstance(value, (dict, list)):
+            try:
+                value = json.dumps(value)
+            except (TypeError, ValueError) as e:
+                logging.error(f"Failed to serialize value to JSON: {str(e)}")
+                return None
+
+        # Ensure value is a type that Valkey can handle
+        if not isinstance(value, (str, bytes, int, float)):
+            try:
+                value = str(value)
+            except Exception as e:
+                logging.error(f"Failed to convert value to string: {str(e)}")
+                return None
+
         self.client.set(key, value, ttl)
 
     @handle_cache_errors
@@ -88,7 +105,25 @@ class ValkeyCache(CacheInterface):
         Returns:
             The cached value or None if not found or on error
         """
-        return self.client.get(key)
+        value = self.client.get(key)
+
+        # Handle bytes objects
+        if value and isinstance(value, bytes):
+            try:
+                # Try to decode bytes to string
+                value = value.decode("utf-8")
+            except UnicodeDecodeError:
+                # If not valid UTF-8, return as is
+                return value
+
+        # Try to deserialize JSON string back to Python object
+        if value and isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                # If not valid JSON, return as is
+                return value
+        return value
 
     @handle_cache_errors
     def delete(self, key: str) -> None:
