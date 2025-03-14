@@ -100,6 +100,7 @@ class LinguaDetectionModel(DetectionModelBase):
         self.detector = LINGUA_DETECTOR
         self.is_loaded = True
         self.architecture = "lingua"
+        self.model_type = "lingua"
         logging.info("Initialized Lingua language detection model")
 
     def load(self) -> Tuple[Any, Any, str]:

@@ -52,3 +52,14 @@ class TranslationModelBase(ABC):
             List of language codes supported by the model
         """
         pass
+
+    @property
+    @abstractmethod
+    def model_type(self) -> str:
+        """
+        Get the type of the model.
+
+        Returns:
+            String identifier for the model type (e.g., "m2m100", "nllb")
+        """
+        pass

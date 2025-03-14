@@ -488,6 +488,10 @@ class NLLBTranslationModel(TranslationModelBase):
     def is_loaded(self):
         return self._model is not None and self._tokenizer is not None
 
+    @property
+    def model_type(self):
+        return "nllb"
+
 
 def get_translation_model() -> NLLBTranslationModel:
     return NLLBTranslationModel()

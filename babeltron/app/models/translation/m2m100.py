@@ -391,6 +391,10 @@ class M2M100TranslationModel(TranslationModelBase):
     def is_loaded(self):
         return self._model is not None and self._tokenizer is not None
 
+    @property
+    def model_type(self):
+        return "m2m100"
+
 
 def get_translation_model() -> M2M100TranslationModel:
     return M2M100TranslationModel()
