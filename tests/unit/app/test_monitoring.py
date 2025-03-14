@@ -115,11 +115,124 @@ class TestMonitoring:
     def test_translation_latency_observe(self, mock_time):
         mock_time.side_effect = [100.0, 105.0]
 
-        with TRANSLATION_LATENCY.labels(src_lang="en", tgt_lang="fr").time():
+        with TRANSLATION_LATENCY.labels(src_lang="en", tgt_lang="fr", detection_used="false").time():
             pass
 
     def test_translation_count_inc(self):
-        before = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr")._value.get()
-        TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr").inc()
-        after = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr")._value.get()
+        before = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr", detection_used="false")._value.get()
+        TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr", detection_used="false").inc()
+        after = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr", detection_used="false")._value.get()
         assert after == before + 1
+
+    @pytest.mark.asyncio
+    async def test_track_metrics_with_auto_detection(self):
+        """Test that detection_used is set to 'true' when src_lang is 'auto'"""
+        mock_request = MagicMock()
+        mock_request.src_lang = "auto"
+        mock_request.tgt_lang = "fr"
+        mock_request.text = "Hello world"
+
+        # Mock the metrics to check they're called with the right labels
+        with patch('babeltron.app.monitoring.TRANSLATION_COUNT.labels') as mock_count, \
+             patch('babeltron.app.monitoring.TRANSLATION_LATENCY.labels') as mock_latency:
+
+            # Set up the mocks to return objects with the necessary methods
+            mock_count.return_value = MagicMock()
+            mock_latency.return_value = MagicMock()
+
+            @track_dynamic_translation_metrics()
+            async def test_func(request):
+                return "result"
+
+            result = await test_func(mock_request)
+
+            # Verify the metrics were called with detection_used="true"
+            mock_count.assert_called_with(src_lang="auto", tgt_lang="fr", detection_used="true")
+            mock_latency.assert_called_with(src_lang="auto", tgt_lang="fr", detection_used="true")
+
+            assert result == "result"
+
+    @pytest.mark.asyncio
+    async def test_track_metrics_with_empty_src_lang(self):
+        """Test that detection_used is set to 'true' when src_lang is empty"""
+        mock_request = MagicMock()
+        mock_request.src_lang = ""
+        mock_request.tgt_lang = "fr"
+        mock_request.text = "Hello world"
+
+        # Mock the metrics to check they're called with the right labels
+        with patch('babeltron.app.monitoring.TRANSLATION_COUNT.labels') as mock_count, \
+             patch('babeltron.app.monitoring.TRANSLATION_LATENCY.labels') as mock_latency:
+
+            # Set up the mocks to return objects with the necessary methods
+            mock_count.return_value = MagicMock()
+            mock_latency.return_value = MagicMock()
+
+            @track_dynamic_translation_metrics()
+            async def test_func(request):
+                return "result"
+
+            result = await test_func(mock_request)
+
+            # Verify the metrics were called with detection_used="true"
+            mock_count.assert_called_with(src_lang="", tgt_lang="fr", detection_used="true")
+            mock_latency.assert_called_with(src_lang="", tgt_lang="fr", detection_used="true")
+
+            assert result == "result"
+
+    @pytest.mark.asyncio
+    async def test_track_metrics_with_none_src_lang(self):
+        """Test that detection_used is set to 'true' when src_lang is None"""
+        mock_request = MagicMock()
+        mock_request.src_lang = None
+        mock_request.tgt_lang = "fr"
+        mock_request.text = "Hello world"
+
+        # Mock the metrics to check they're called with the right labels
+        with patch('babeltron.app.monitoring.TRANSLATION_COUNT.labels') as mock_count, \
+             patch('babeltron.app.monitoring.TRANSLATION_LATENCY.labels') as mock_latency:
+
+            # Set up the mocks to return objects with the necessary methods
+            mock_count.return_value = MagicMock()
+            mock_latency.return_value = MagicMock()
+
+            @track_dynamic_translation_metrics()
+            async def test_func(request):
+                return "result"
+
+            result = await test_func(mock_request)
+
+            # Verify the metrics were called with detection_used="true"
+            mock_count.assert_called_with(src_lang=None, tgt_lang="fr", detection_used="true")
+            mock_latency.assert_called_with(src_lang=None, tgt_lang="fr", detection_used="true")
+
+            assert result == "result"
+
+    @pytest.mark.asyncio
+    async def test_track_metrics_with_detection_only(self):
+        """Test that detection_used is set to 'true' for detection-only endpoints"""
+        mock_request = MagicMock()
+        # For detection-only endpoints, we need text but not src_lang
+        delattr(mock_request, 'src_lang')  # Ensure src_lang doesn't exist
+        mock_request.text = "Hello world"
+        mock_request.tgt_lang = "detect"
+
+        # Mock the metrics to check they're called with the right labels
+        with patch('babeltron.app.monitoring.TRANSLATION_COUNT.labels') as mock_count, \
+             patch('babeltron.app.monitoring.TRANSLATION_LATENCY.labels') as mock_latency:
+
+            # Set up the mocks to return objects with the necessary methods
+            mock_count.return_value = MagicMock()
+            mock_latency.return_value = MagicMock()
+
+            @track_dynamic_translation_metrics()
+            async def test_func(request):
+                return "result"
+
+            result = await test_func(mock_request)
+
+            # Verify the metrics were called with detection_used="true"
+            mock_count.assert_called_with(src_lang="detect", tgt_lang="detect", detection_used="true")
+            mock_latency.assert_called_with(src_lang="detect", tgt_lang="detect", detection_used="true")
+
+            assert result == "result"
