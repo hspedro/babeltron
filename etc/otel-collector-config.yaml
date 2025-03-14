@@ -17,8 +17,8 @@ processors:
     spike_limit_percentage: 25
 
 exporters:
-  otlp:
-    endpoint: jaeger:4317
+  jaeger:
+    endpoint: jaeger:14250
     tls:
       insecure: true
   debug:
@@ -38,4 +38,4 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [otlp, debug]
+      exporters: [jaeger, logging, debug]

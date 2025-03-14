@@ -275,7 +275,6 @@ make docker-compose-down
 The following environment variables can be used to configure the application:
 
 - `MODEL_PATH`: Path to the model directory (default: `./models`)
-- `MODEL_TYPE`: Type of model to use (`m2m` or `nllb`, default: `m2m`)
 - `MODEL_SIZE`: Size of model to use (`small`, `medium`, or `large`, default: `small`)
 - `PORT`: Port to run the API server on (default: `8000`)
 - `WORKER_COUNT`: Number of worker processes to use (default: `1`)

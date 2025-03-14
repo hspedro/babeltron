@@ -14,6 +14,10 @@ COPY babeltron ./babeltron
 RUN poetry config virtualenvs.create false \
     && poetry install --without dev --no-interaction --no-ansi
 
+# Install CUDA-enabled PyTorch (replacing the CPU-only version)
+RUN pip uninstall -y torch torchvision torchaudio && \
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
 FROM python:3.10-slim
 
 WORKDIR /app
@@ -28,6 +32,13 @@ COPY --from=builder /app/babeltron ./babeltron
 # Copy and set permissions on the entrypoint script BEFORE changing user
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
+
+# We don't need to install CUDA libraries in the container
+# The NVIDIA container runtime will provide GPU access
+# Just ensure we have basic dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONPATH=/app
 ENV MODEL_PATH=/models

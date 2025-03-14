@@ -1,4 +1,4 @@
-.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-m2m-small download-model-m2m-medium download-model-m2m-large download-model-nllb download-model-nllb-small download-model-nllb-medium download-model-nllb-large serve serve-prod docker-build docker-run docker-compose-up docker-compose-down pre-commit-install pre-commit-run docker-build-with-model docker-up docker-down
+.PHONY: check-poetry install test lint format help system-deps coverage coverage-html download-model download-model-m2m-small download-model-m2m-medium download-model-m2m-large download-model-nllb download-model-nllb-small download-model-nllb-medium download-model-nllb-large serve serve-prod docker-build docker-run docker compose-up docker compose-down pre-commit-install pre-commit-run docker-build-with-model docker-up docker-down
 
 # Define model path variable with default value, can be overridden by environment
 MODEL_PATH ?= ./models
@@ -181,7 +181,7 @@ docker-run: ## Run Docker container with model volume mount
 	@echo "Running Docker container..."
 	@docker run -p $(PORT):$(PORT) -v $(shell pwd)/$(MODEL_PATH):/models -e MODEL_PATH=/models -e BABELTRON_BABELTRON_MODEL_TYPE=$(BABELTRON_MODEL_TYPE) -e PORT=$(PORT) $(IMAGE_NAME):latest
 
-docker-up: ## Build and start services with docker-compose
+docker-up: ## Build and start services with docker compose
 	@echo "Checking for model files..."
 	@if [ ! -d "$(MODEL_PATH)" ] || [ -z "$(shell ls -A $(MODEL_PATH) 2>/dev/null)" ]; then \
 		echo "No model files found in $(MODEL_PATH) directory."; \
@@ -217,18 +217,18 @@ docker-up: ## Build and start services with docker-compose
 			echo "Model download skipped. Container may not work properly."; \
 		fi; \
 	fi
-	@echo "Building and starting services with docker-compose..."
-	@BABELTRON_MODEL_TYPE=$(BABELTRON_MODEL_TYPE) docker-compose up -d --build
+	@echo "Building and starting services with docker compose..."
+	@BABELTRON_MODEL_TYPE=$(BABELTRON_MODEL_TYPE) docker compose up -d --build
 	@echo "Services started successfully. API available at http://localhost:8000"
 	@echo "API documentation available at http://localhost:8000/docs"
 
 docker-down:
-	@echo "Stopping docker-compose services..."
-	@docker-compose down
+	@echo "Stopping docker compose services..."
+	@docker compose down
 
-docker-compose-down: ## Stop Docker Compose services
+docker compose-down: ## Stop Docker Compose services
 	@echo "Stopping Docker Compose services..."
-	@PORT=$(PORT) docker-compose down
+	@PORT=$(PORT) docker compose down
 	@echo "Services stopped successfully."
 
 pre-commit-install:
@@ -238,7 +238,7 @@ pre-commit-install:
 pre-commit-run:
 	pre-commit run --all-files
 
-docker-compose-up: ## Start services with Docker Compose
+docker compose-up: ## Start services with Docker Compose
 	@echo "Starting services with Docker Compose..."
-	@PORT=$(PORT) docker-compose up -d
+	@PORT=$(PORT) docker compose up -d
 	@echo "Services started successfully. API is available at http://localhost:$(PORT)/api/docs"

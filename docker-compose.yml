@@ -10,17 +10,26 @@ services:
     volumes:
       - ./models:/models
     environment:
-      - MODEL_PATH=/models
+      - MODEL_PATH=${MODEL_PATH:-/models}
       - BABELTRON_MODEL_TYPE=${BABELTRON_MODEL_TYPE:-m2m100}
-      - OTLP_MODE=otlp-grpc
-      - OTEL_SERVICE_NAME=babeltron
-      - OTLP_COLLECTOR_HOST=otel-collector
-      - OTLP_COLLECTOR_PORT=4317
+      - OTLP_MODE=${OTLP_MODE:-otlp-grpc}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-babeltron}
+      - OTLP_COLLECTOR_HOST=${OTEL_COLLECTOR_HOST:-otel-collector}
+      - OTLP_COLLECTOR_PORT=${OTEL_COLLECTOR_PORT:-4317}
       - AUTH_USERNAME=${AUTH_USERNAME}
       - AUTH_PASSWORD=${AUTH_PASSWORD}
-      - WORKER_COUNT=2
+      - WORKER_COUNT=${WORKER_COUNT:-2}
       - PORT=${PORT:-8000}
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/healthz"]
       interval: 30s
