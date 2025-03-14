@@ -20,14 +20,30 @@ def mock_detection_model():
         yield mock_model
 
 
+@pytest.fixture
+def mock_cache_service():
+    with patch("babeltron.app.routers.detect.cache_service") as mock_cache:
+        mock_cache.get_detection.return_value = None
+        yield mock_cache
+
+
 def test_detect_success(client, mock_detection_model):
-    response = client.post(
-        "/api/v1/detect",
-        json={"text": "Hello, how are you?"},
-    )
-    assert response.status_code == status.HTTP_200_OK
-    assert response.json() == {"language": "en", "confidence": 0.98}
-    mock_detection_model.detect.assert_called_once()
+    # Mock the cache service to avoid cache-related issues
+    with patch("babeltron.app.routers.detect.cache_service") as mock_cache:
+        mock_cache.get_detection.return_value = None
+
+        response = client.post(
+            "/api/v1/detect",
+            json={"text": "Hello, how are you?"},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        # Only check the specific fields we care about
+        response_json = response.json()
+        assert response_json["language"] == "en"
+        assert response_json["confidence"] == 0.98
+
+        mock_detection_model.detect.assert_called_once()
 
 
 def test_detect_model_not_loaded(client):

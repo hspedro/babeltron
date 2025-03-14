@@ -1,10 +1,12 @@
 import logging
 import time
+from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException, status
 from opentelemetry import trace
 from pydantic import BaseModel, Field
 
+from babeltron.app.cache.service import CacheService
 from babeltron.app.config import DETECTION_MODEL_TYPE
 from babeltron.app.models.detection.factory import get_detection_model
 from babeltron.app.monitoring import track_dynamic_translation_metrics
@@ -12,6 +14,8 @@ from babeltron.app.monitoring import track_dynamic_translation_metrics
 router = APIRouter(tags=["Detection"])
 
 detection_model = get_detection_model(model_type=DETECTION_MODEL_TYPE)
+
+cache_service = CacheService[Dict[str, Any]]()
 
 
 class DetectionRequest(BaseModel):
@@ -32,6 +36,9 @@ class DetectionRequest(BaseModel):
 class DetectionResponse(BaseModel):
     language: str = Field(..., description="The detected language")
     confidence: float = Field(..., description="The confidence score of the detection")
+    cached: bool = Field(
+        False, description="Whether the result was retrieved from cache"
+    )
 
 
 @router.post(
@@ -54,8 +61,19 @@ async def detect(request: DetectionRequest):
     current_span = trace.get_current_span()
     current_span.set_attribute("text_length", len(request.text))
 
+    # Check cache for existing detection result
+    cached_result = cache_service.get_detection(request.text)
+    if cached_result:
+        logging.info("Cache hit for language detection")
+        current_span.set_attribute("cache_hit", True)
+
+        # Add the cached flag to the response
+        cached_result["cached"] = True
+        return cached_result
+
     # Use the pre-loaded model based on model_type
     model = detection_model
+    current_span.set_attribute("cache_hit", False)
 
     # Check if model is None
     if model is None:
@@ -91,10 +109,17 @@ async def detect(request: DetectionRequest):
             f"Detected: {language} with confidence {confidence:.4f}"
         )
 
-        return {
+        # Prepare the response
+        response = {
             "language": language,
             "confidence": confidence,
+            "cached": False,
         }
+
+        # Cache the result
+        cache_service.save_detection(request.text, response)
+
+        return response
 
     except Exception as e:
         current_span.record_exception(e)

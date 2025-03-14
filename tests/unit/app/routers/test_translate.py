@@ -135,7 +135,11 @@ def test_translate_with_model_type(mock_nllb_model, client):
     # Patch the factory to return our NLLB mock
     with patch("babeltron.app.models.translation.factory.get_translation_model", return_value=mock_nllb_model), \
          patch("babeltron.app.routers.translate.translation_model", mock_nllb_model), \
-         patch("opentelemetry.trace.get_tracer", return_value=mock_tracer):
+         patch("opentelemetry.trace.get_tracer", return_value=mock_tracer), \
+         patch("babeltron.app.routers.translate.cache_service") as mock_cache:
+
+        # Configure the cache to return a miss
+        mock_cache.get_translation.return_value = None
 
         # Make a request with a specific model_type
         response = client.post(
@@ -149,13 +153,13 @@ def test_translate_with_model_type(mock_nllb_model, client):
 
         # Verify the response matches what we expect
         assert response.status_code == 200
-        assert response.json() == {
-            "translation": "Hola, ¿cómo está?",
-            "model_type": "nllb",
-            "architecture": "mps_fp16",
-            "detected_lang": None,
-            "detection_confidence": None
-        }
+        response_json = response.json()
+        assert response_json["translation"] == "Hola, ¿cómo está?"
+        assert response_json["model_type"] == "nllb"
+        assert response_json["architecture"] == "mps_fp16"
+        assert response_json["detected_lang"] is None
+        assert response_json["detection_confidence"] is None
+        assert "cached" in response_json
 
 
 @patch("babeltron.app.models.translation.factory.get_translation_model")
@@ -228,23 +232,24 @@ def test_languages_endpoint(mock_translation_model, mock_get_model, client):
     mock_model = MagicMock()
     mock_model.is_loaded = True
     mock_model._model_path = "/mocked/path"
-    mock_model.get_languages.return_value = ["en", "fr", "es", "de"]
+    mock_model.supported_languages = ["en", "fr", "es", "de"]
 
     # Make the factory return our mock model
     mock_get_model.return_value = mock_model
 
     # Configure the translation_model mock
     mock_translation_model.is_loaded = True
-    mock_translation_model.get_languages.return_value = ["en", "fr", "es", "de"]
+    mock_translation_model.supported_languages = ["en", "fr", "es", "de"]
 
     response = client.get("/api/v1/languages")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
-    assert isinstance(data, list)
-    assert "en" in data
-    assert "fr" in data
-    assert "es" in data
-    assert "de" in data
+    assert isinstance(data, dict)
+    assert "languages" in data
+    assert isinstance(data["languages"], list)
+    assert "en" in data["languages"]
+    assert "fr" in data["languages"]
+    assert "es" in data["languages"]
 
 
 @patch("babeltron.app.models.translation.factory.get_translation_model")

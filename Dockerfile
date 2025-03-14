@@ -14,6 +14,9 @@ COPY babeltron ./babeltron
 RUN poetry config virtualenvs.create false \
     && poetry install --without dev --no-interaction --no-ansi
 
+# Pin NumPy to a version below 2.0 to avoid compatibility issues
+RUN pip install numpy==1.26.4 --force-reinstall
+
 # Install CUDA-enabled PyTorch (replacing the CPU-only version)
 RUN pip uninstall -y torch torchvision torchaudio && \
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118

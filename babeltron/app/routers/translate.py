@@ -1,11 +1,12 @@
 import logging
 import time
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, HTTPException, status
 from opentelemetry import trace
 from pydantic import BaseModel, Field
 
+from babeltron.app.cache.service import CacheService
 from babeltron.app.config import BABELTRON_MODEL_TYPE, DETECTION_MODEL_TYPE
 from babeltron.app.models.detection.factory import get_detection_model
 from babeltron.app.models.translation.factory import get_translation_model
@@ -18,6 +19,9 @@ translation_model = get_translation_model(BABELTRON_MODEL_TYPE)
 
 # Get the default detection model
 detection_model = get_detection_model(model_type=DETECTION_MODEL_TYPE)
+
+# Initialize the cache service
+cache_service = CacheService[Dict[str, Any]]()
 
 
 class TranslationRequest(BaseModel):
@@ -52,6 +56,9 @@ class TranslationResponse(BaseModel):
     )
     detection_confidence: Optional[float] = Field(
         None, description="Confidence score of language detection (if auto-detected)"
+    )
+    cached: bool = Field(
+        False, description="Whether the result was retrieved from cache"
     )
 
 
@@ -138,9 +145,22 @@ async def translate(request: TranslationRequest):
         current_span.set_attribute("src_lang", src_lang)
         current_span.set_attribute("auto_detection", False)
 
+    # Check cache for existing translation
+    cached_result = cache_service.get_translation(
+        request.text, src_lang, request.tgt_lang
+    )
+    if cached_result:
+        logging.info(f"Cache hit for translation: {src_lang} -> {request.tgt_lang}")
+        current_span.set_attribute("cache_hit", True)
+
+        # Add the cached flag to the response
+        cached_result["cached"] = True
+        return cached_result
+
     logging.info(
         f"Translating text from {src_lang} to {request.tgt_lang} using {translation_model.model_type} model"
     )
+    current_span.set_attribute("cache_hit", False)
 
     if not translation_model.is_loaded:
         current_span.set_attribute("error", "model_not_loaded")
@@ -169,13 +189,22 @@ async def translate(request: TranslationRequest):
             f"Translation completed in {translation_time:.2f}s using {translation_model.architecture}"
         )
 
-        return {
+        # Prepare the response
+        response = {
             "translation": translation,
             "model_type": translation_model.model_type,
             "architecture": translation_model.architecture,
             "detected_lang": detected_lang,
             "detection_confidence": detection_confidence,
+            "cached": False,
         }
+
+        # Cache the result
+        cache_service.save_translation(
+            request.text, src_lang, request.tgt_lang, response
+        )
+
+        return response
 
     except Exception as e:
         current_span.record_exception(e)
@@ -201,14 +230,4 @@ async def languages():
             detail="Translation model not loaded. Please check server logs.",
         )
 
-    try:
-        # Get languages from the model
-        lang_names = model.get_languages()
-        return lang_names
-
-    except Exception as e:
-        logging.error(f"Error getting languages: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving languages: {str(e)}",
-        )
+    return {"languages": model.supported_languages}
