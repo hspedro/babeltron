@@ -171,6 +171,41 @@ curl -X POST "http://localhost:8000/api/v1/translate" \
 # Response:
 # {"translation":"Hola, ¿cómo estás?"}
 
+# Translate text with automatic language detection
+curl -X POST "http://localhost:8000/api/v1/translate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Bonjour, comment ça va?",
+    "src_lang": "auto",
+    "tgt_lang": "en"
+  }'
+
+# Response:
+# {
+#   "translation": "Hello, how are you?",
+#   "model_type": "m2m100",
+#   "architecture": "cpu_compiled",
+#   "detected_lang": "fr",
+#   "detection_confidence": 0.98
+# }
+
+# You can also omit the source language entirely for automatic detection
+curl -X POST "http://localhost:8000/api/v1/translate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Hola, ¿cómo estás?",
+    "tgt_lang": "en"
+  }'
+
+# Response includes the detected language and confidence score
+# {
+#   "translation": "Hello, how are you?",
+#   "model_type": "m2m100",
+#   "architecture": "cpu_compiled",
+#   "detected_lang": "es",
+#   "detection_confidence": 0.95
+# }
+
 # Translate text with NLLB model using FLORES-200 language codes
 curl -X POST "http://localhost:8000/api/v1/translate" \
   -H "Content-Type: application/json" \
