@@ -150,8 +150,16 @@ def track_dynamic_translation_metrics():
                 request = args[0]
 
             start_time = time.time()
-            src_lang = request.src_lang
-            tgt_lang = request.tgt_lang
+
+            # Check if the request has src_lang and tgt_lang attributes (for translation)
+            # or if it's a detection request
+            src_lang = getattr(request, "src_lang", "unknown")
+            tgt_lang = getattr(request, "tgt_lang", "unknown")
+
+            # For detection requests, use special labels
+            if hasattr(request, "text") and not hasattr(request, "src_lang"):
+                src_lang = "detect"
+                tgt_lang = "detect"
 
             TRANSLATION_COUNT.labels(src_lang=src_lang, tgt_lang=tgt_lang).inc()
 
