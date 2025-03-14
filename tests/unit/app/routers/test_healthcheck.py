@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from fastapi import status
 
 from babeltron.app.main import app
-from babeltron.app.models.m2m100 import ModelArchitecture
+from babeltron.app.models.translation.m2m100 import ModelArchitecture
 
 
 @pytest.fixture

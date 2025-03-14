@@ -7,7 +7,7 @@ from opentelemetry import trace
 from pydantic import BaseModel, Field
 
 from babeltron.app.config import BABELTRON_MODEL_TYPE
-from babeltron.app.models.factory import get_translation_model
+from babeltron.app.models.translation.factory import get_translation_model
 from babeltron.app.monitoring import track_dynamic_translation_metrics
 
 router = APIRouter(tags=["Translation"])

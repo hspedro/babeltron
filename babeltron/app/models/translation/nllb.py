@@ -7,7 +7,7 @@ import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 from babeltron.app.config import MODEL_PATH
-from babeltron.app.models.base import TranslationModelBase
+from babeltron.app.models.translation.base import TranslationModelBase
 
 
 def get_model_path() -> str:
@@ -194,25 +194,40 @@ class NLLBTranslationModel(TranslationModelBase):
             return False
 
     def translate(self, text: str, src_lang: str, tgt_lang: str, tracer=None) -> str:
-        """Translate text from source language to target language"""
+        """
+        Translate text using the appropriate method for the current architecture
+
+        Args:
+            text: The text to translate
+            src_lang: Source language code (ISO 639-1)
+            tgt_lang: Target language code (ISO 639-1)
+            tracer: Optional OpenTelemetry tracer for spans
+
+        Returns:
+            The translated text
+        """
         if self._model is None or self._tokenizer is None:
             raise ValueError("Model not loaded. Please check logs for errors.")
 
-        # NLLB uses language codes with format "eng_Latn"
-        # Convert ISO language codes if needed
-        src_lang = self._convert_lang_code(src_lang)
-        tgt_lang = self._convert_lang_code(tgt_lang)
+        # Convert ISO 639-1 codes to NLLB format (e.g., "en" -> "eng_Latn")
+        src_lang_nllb = self._convert_lang_code(src_lang)
+        tgt_lang_nllb = self._convert_lang_code(tgt_lang)
 
+        # Choose the appropriate translation method based on architecture
         if self._architecture == ModelArchitecture.CUDA_FP16:
-            return self._translate_gpu(text, src_lang, tgt_lang, tracer, "cuda")
+            return self._translate_gpu(
+                text, src_lang_nllb, tgt_lang_nllb, tracer, "cuda"
+            )
         elif self._architecture == ModelArchitecture.ROCM_FP16:
             return self._translate_gpu(
-                text, src_lang, tgt_lang, tracer, "cuda"
+                text, src_lang_nllb, tgt_lang_nllb, tracer, "cuda"
             )  # ROCm uses "cuda" as device name
         elif self._architecture == ModelArchitecture.MPS_FP16:
-            return self._translate_gpu(text, src_lang, tgt_lang, tracer, "mps")
+            return self._translate_gpu(
+                text, src_lang_nllb, tgt_lang_nllb, tracer, "mps"
+            )
         else:
-            return self._translate_cpu(text, src_lang, tgt_lang, tracer)
+            return self._translate_cpu(text, src_lang_nllb, tgt_lang_nllb, tracer)
 
     def _convert_lang_code(self, lang_code: str) -> str:
         """
@@ -452,241 +467,10 @@ class NLLBTranslationModel(TranslationModelBase):
             raise
 
     def get_languages(self) -> List[str]:
-        """Get list of supported languages"""
+        """Get a list of supported language codes in NLLB format"""
         if self._tokenizer is None:
             raise ValueError("Model not loaded. Please check logs for errors.")
-
-        # NLLB supports 200+ languages with codes like "eng_Latn", "fra_Latn", etc.
-        # These are the BCP-47 codes used in the FLORES-200 dataset
-        # We'll return a list of these codes
-
-        # Full list of FLORES-200 language codes
-        common_langs = [
-            # Common languages
-            "eng_Latn",  # English
-            "fra_Latn",  # French
-            "deu_Latn",  # German
-            "spa_Latn",  # Spanish
-            "ita_Latn",  # Italian
-            "por_Latn",  # Portuguese
-            "rus_Cyrl",  # Russian
-            "zho_Hans",  # Chinese (Simplified)
-            "jpn_Jpan",  # Japanese
-            "ara_Arab",  # Arabic
-            "hin_Deva",  # Hindi
-            "kor_Hang",  # Korean
-            # Additional languages from FLORES-200
-            "ace_Arab",  # Acehnese (Arabic script)
-            "ace_Latn",  # Acehnese (Latin script)
-            "acm_Arab",  # Mesopotamian Arabic
-            "acq_Arab",  # Ta'izzi-Adeni Arabic
-            "aeb_Arab",  # Tunisian Arabic
-            "afr_Latn",  # Afrikaans
-            "ajp_Arab",  # South Levantine Arabic
-            "aka_Latn",  # Akan
-            "amh_Ethi",  # Amharic
-            "apc_Arab",  # North Levantine Arabic
-            "arb_Arab",  # Modern Standard Arabic
-            "arb_Latn",  # Modern Standard Arabic (Romanized)
-            "ars_Arab",  # Najdi Arabic
-            "ary_Arab",  # Moroccan Arabic
-            "arz_Arab",  # Egyptian Arabic
-            "asm_Beng",  # Assamese
-            "ast_Latn",  # Asturian
-            "awa_Deva",  # Awadhi
-            "ayr_Latn",  # Central Aymara
-            "azb_Arab",  # South Azerbaijani
-            "azj_Latn",  # North Azerbaijani
-            "bak_Cyrl",  # Bashkir
-            "bam_Latn",  # Bambara
-            "ban_Latn",  # Balinese
-            "bel_Cyrl",  # Belarusian
-            "bem_Latn",  # Bemba
-            "ben_Beng",  # Bengali
-            "bho_Deva",  # Bhojpuri
-            "bjn_Arab",  # Banjar (Arabic script)
-            "bjn_Latn",  # Banjar (Latin script)
-            "bod_Tibt",  # Standard Tibetan
-            "bos_Latn",  # Bosnian
-            "bug_Latn",  # Buginese
-            "bul_Cyrl",  # Bulgarian
-            "cat_Latn",  # Catalan
-            "ceb_Latn",  # Cebuano
-            "ces_Latn",  # Czech
-            "cjk_Latn",  # Chokwe
-            "ckb_Arab",  # Central Kurdish
-            "crh_Latn",  # Crimean Tatar
-            "cym_Latn",  # Welsh
-            "dan_Latn",  # Danish
-            "dik_Latn",  # Southwestern Dinka
-            "dyu_Latn",  # Dyula
-            "dzo_Tibt",  # Dzongkha
-            "ell_Grek",  # Greek
-            "epo_Latn",  # Esperanto
-            "est_Latn",  # Estonian
-            "eus_Latn",  # Basque
-            "ewe_Latn",  # Ewe
-            "fao_Latn",  # Faroese
-            "fij_Latn",  # Fijian
-            "fin_Latn",  # Finnish
-            "fon_Latn",  # Fon
-            "fur_Latn",  # Friulian
-            "fuv_Latn",  # Nigerian Fulfulde
-            "gaz_Latn",  # West Central Oromo
-            "gla_Latn",  # Scottish Gaelic
-            "gle_Latn",  # Irish
-            "glg_Latn",  # Galician
-            "grn_Latn",  # Guarani
-            "guj_Gujr",  # Gujarati
-            "hat_Latn",  # Haitian Creole
-            "hau_Latn",  # Hausa
-            "heb_Hebr",  # Hebrew
-            "hne_Deva",  # Chhattisgarhi
-            "hrv_Latn",  # Croatian
-            "hun_Latn",  # Hungarian
-            "hye_Armn",  # Armenian
-            "ibo_Latn",  # Igbo
-            "ilo_Latn",  # Ilocano
-            "ind_Latn",  # Indonesian
-            "isl_Latn",  # Icelandic
-            "jav_Latn",  # Javanese
-            "kab_Latn",  # Kabyle
-            "kac_Latn",  # Jingpho
-            "kam_Latn",  # Kamba
-            "kan_Knda",  # Kannada
-            "kas_Arab",  # Kashmiri (Arabic script)
-            "kas_Deva",  # Kashmiri (Devanagari script)
-            "kat_Geor",  # Georgian
-            "kaz_Cyrl",  # Kazakh
-            "kbp_Latn",  # Kabiyè
-            "kea_Latn",  # Kabuverdianu
-            "khk_Cyrl",  # Halh Mongolian
-            "khm_Khmr",  # Khmer
-            "kik_Latn",  # Kikuyu
-            "kin_Latn",  # Kinyarwanda
-            "kir_Cyrl",  # Kyrgyz
-            "kmb_Latn",  # Kimbundu
-            "kmr_Latn",  # Northern Kurdish
-            "knc_Arab",  # Central Kanuri (Arabic script)
-            "knc_Latn",  # Central Kanuri (Latin script)
-            "kon_Latn",  # Kikongo
-            "lao_Laoo",  # Lao
-            "lij_Latn",  # Ligurian
-            "lim_Latn",  # Limburgish
-            "lin_Latn",  # Lingala
-            "lit_Latn",  # Lithuanian
-            "lmo_Latn",  # Lombard
-            "ltg_Latn",  # Latgalian
-            "ltz_Latn",  # Luxembourgish
-            "lua_Latn",  # Luba-Kasai
-            "lug_Latn",  # Ganda
-            "luo_Latn",  # Luo
-            "lvs_Latn",  # Standard Latvian
-            "mag_Deva",  # Magahi
-            "mal_Mlym",  # Malayalam
-            "mar_Deva",  # Marathi
-            "min_Latn",  # Minangkabau
-            "mkd_Cyrl",  # Macedonian
-            "mlt_Latn",  # Maltese
-            "mni_Beng",  # Meitei (Bengali script)
-            "mos_Latn",  # Mossi
-            "mri_Latn",  # Maori
-            "mya_Mymr",  # Burmese
-            "nld_Latn",  # Dutch
-            "nno_Latn",  # Norwegian Nynorsk
-            "nob_Latn",  # Norwegian Bokmål
-            "npi_Deva",  # Nepali
-            "nso_Latn",  # Northern Sotho
-            "nus_Latn",  # Nuer
-            "nya_Latn",  # Nyanja
-            "oci_Latn",  # Occitan
-            "ory_Orya",  # Odia
-            "pag_Latn",  # Pangasinan
-            "pan_Guru",  # Punjabi
-            "pap_Latn",  # Papiamento
-            "pbt_Arab",  # Southern Pashto
-            "pes_Arab",  # Western Persian
-            "plt_Latn",  # Plateau Malagasy
-            "pol_Latn",  # Polish
-            "prs_Arab",  # Dari
-            "quy_Latn",  # Ayacucho Quechua
-            "ron_Latn",  # Romanian
-            "run_Latn",  # Rundi
-            "sag_Latn",  # Sango
-            "san_Deva",  # Sanskrit
-            "sat_Olck",  # Santali
-            "scn_Latn",  # Sicilian
-            "shn_Mymr",  # Shan
-            "sin_Sinh",  # Sinhala
-            "slk_Latn",  # Slovak
-            "slv_Latn",  # Slovenian
-            "smo_Latn",  # Samoan
-            "sna_Latn",  # Shona
-            "snd_Arab",  # Sindhi
-            "som_Latn",  # Somali
-            "sot_Latn",  # Southern Sotho
-            "srd_Latn",  # Sardinian
-            "srp_Cyrl",  # Serbian
-            "ssw_Latn",  # Swati
-            "sun_Latn",  # Sundanese
-            "swe_Latn",  # Swedish
-            "swh_Latn",  # Swahili
-            "szl_Latn",  # Silesian
-            "tam_Taml",  # Tamil
-            "taq_Latn",  # Tamasheq (Latin script)
-            "taq_Tfng",  # Tamasheq (Tifinagh script)
-            "tat_Cyrl",  # Tatar
-            "tel_Telu",  # Telugu
-            "tgk_Cyrl",  # Tajik
-            "tgl_Latn",  # Tagalog
-            "tha_Thai",  # Thai
-            "tir_Ethi",  # Tigrinya
-            "tpi_Latn",  # Tok Pisin
-            "tsn_Latn",  # Tswana
-            "tso_Latn",  # Tsonga
-            "tuk_Latn",  # Turkmen
-            "tum_Latn",  # Tumbuka
-            "tur_Latn",  # Turkish
-            "twi_Latn",  # Twi
-            "tzm_Tfng",  # Central Atlas Tamazight
-            "uig_Arab",  # Uyghur
-            "ukr_Cyrl",  # Ukrainian
-            "umb_Latn",  # Umbundu
-            "urd_Arab",  # Urdu
-            "uzn_Latn",  # Northern Uzbek
-            "vec_Latn",  # Venetian
-            "vie_Latn",  # Vietnamese
-            "war_Latn",  # Waray
-            "wol_Latn",  # Wolof
-            "xho_Latn",  # Xhosa
-            "yid_Hebr",  # Yiddish
-            "yor_Latn",  # Yoruba
-            "zho_Hans",  # Chinese (Simplified)
-            "zho_Hant",  # Chinese (Traditional)
-            "zsm_Latn",  # Standard Malay
-            "zul_Latn",  # Zulu
-        ]
-
-        # Try to get all supported languages from the tokenizer
-        try:
-            # Get all special tokens that represent languages
-            all_langs = []
-            for token in self._tokenizer.additional_special_tokens:
-                if (
-                    "_" in token and len(token) > 4
-                ):  # Simple heuristic for language codes
-                    all_langs.append(token)
-
-            if all_langs:
-                return all_langs
-            else:
-                logging.warning(
-                    "Could not find language tokens in tokenizer, returning common languages"
-                )
-                return common_langs
-        except Exception as e:
-            logging.warning(f"Error getting languages from tokenizer: {e}")
-            return common_langs
+        return self._tokenizer.additional_special_tokens
 
     @property
     def model(self):

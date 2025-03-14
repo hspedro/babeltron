@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from fastapi import FastAPI, status
 
-from babeltron.app.models.factory import ModelType
+from babeltron.app.models.translation.factory import ModelType
 from babeltron.app.routers import translate as translate_router
 
 # Create a test app without authentication middleware
@@ -14,8 +14,8 @@ test_app.include_router(translate_router.router, prefix="/api/v1")
 model_patches = [
     patch("transformers.AutoModelForSeq2SeqLM.from_pretrained"),
     patch("transformers.AutoTokenizer.from_pretrained"),
-    patch("babeltron.app.models.nllb.get_model_path", return_value="/mocked/path"),
-    patch("babeltron.app.models.m2m100.get_model_path", return_value="/mocked/path"),
+    patch("babeltron.app.models.translation.nllb.get_model_path", return_value="/mocked/path"),
+    patch("babeltron.app.models.translation.m2m100.get_model_path", return_value="/mocked/path"),
 ]
 
 
@@ -50,7 +50,7 @@ def mock_nllb_model():
     mock._model_path = "/mocked/path"
     mock.translate.return_value = "Hola, ¿cómo está?"
 
-    with patch("babeltron.app.models.nllb.NLLBTranslationModel.__new__", return_value=mock):
+    with patch("babeltron.app.models.translation.nllb.NLLBTranslationModel.__new__", return_value=mock):
         yield mock
 
 
@@ -63,12 +63,12 @@ def mock_m2m_model():
     mock._model_path = "/mocked/path"
     mock.translate.return_value = "Bonjour le monde"
 
-    with patch("babeltron.app.models.m2m100.M2M100TranslationModel.__new__", return_value=mock):
+    with patch("babeltron.app.models.translation.m2m100.M2M100TranslationModel.__new__", return_value=mock):
         yield mock
 
 
 # Patch both the factory function and the global translation_model
-@patch("babeltron.app.models.factory.get_translation_model")
+@patch("babeltron.app.models.translation.factory.get_translation_model")
 @patch("babeltron.app.routers.translate.translation_model", new_callable=MagicMock)
 def test_translate_success(mock_translation_model, mock_get_model, mock_m2m_model, client):
     # Set up both mocks to return our mock model
@@ -110,7 +110,7 @@ def test_translate_with_model_type(mock_nllb_model, client):
     mock_tracer = MagicMock()
 
     # Patch the factory to return our NLLB mock
-    with patch("babeltron.app.models.factory.get_translation_model", return_value=mock_nllb_model), \
+    with patch("babeltron.app.models.translation.factory.get_translation_model", return_value=mock_nllb_model), \
          patch("babeltron.app.routers.translate.translation_model", default_mock), \
          patch("opentelemetry.trace.get_tracer", return_value=mock_tracer):
 
@@ -134,7 +134,7 @@ def test_translate_with_model_type(mock_nllb_model, client):
         }
 
 
-@patch("babeltron.app.models.factory.get_translation_model")
+@patch("babeltron.app.models.translation.factory.get_translation_model")
 @patch("babeltron.app.routers.translate.translation_model", new_callable=MagicMock)
 def test_translate_model_not_loaded(mock_translation_model, mock_get_model, client):
     # Create a mock model that's not loaded
@@ -162,7 +162,7 @@ def test_translate_model_not_loaded(mock_translation_model, mock_get_model, clie
     assert "not loaded" in data["detail"]
 
 
-@patch("babeltron.app.models.factory.get_translation_model")
+@patch("babeltron.app.models.translation.factory.get_translation_model")
 @patch("babeltron.app.routers.translate.translation_model", new_callable=MagicMock)
 def test_translate_model_error(mock_translation_model, mock_get_model, client):
     # Create a mock model that raises an error
@@ -197,7 +197,7 @@ def test_translate_model_error(mock_translation_model, mock_get_model, client):
     assert "Test error" in data["detail"]
 
 
-@patch("babeltron.app.models.factory.get_translation_model")
+@patch("babeltron.app.models.translation.factory.get_translation_model")
 @patch("babeltron.app.routers.translate.translation_model", new_callable=MagicMock)
 def test_languages_endpoint(mock_translation_model, mock_get_model, client):
     # Create a mock model
@@ -223,7 +223,7 @@ def test_languages_endpoint(mock_translation_model, mock_get_model, client):
     assert "de" in data
 
 
-@patch("babeltron.app.models.factory.get_translation_model")
+@patch("babeltron.app.models.translation.factory.get_translation_model")
 @patch("babeltron.app.routers.translate.translation_model", new_callable=MagicMock)
 def test_languages_with_model_type(mock_translation_model, mock_get_model, mock_nllb_model, client):
     # Configure translation_model mock
@@ -239,7 +239,7 @@ def test_languages_with_model_type(mock_translation_model, mock_get_model, mock_
     assert response.status_code == status.HTTP_200_OK
 
 
-@patch("babeltron.app.models.factory.get_translation_model")
+@patch("babeltron.app.models.translation.factory.get_translation_model")
 @patch("babeltron.app.routers.translate.translation_model", new_callable=MagicMock)
 def test_languages_model_not_loaded(mock_translation_model, mock_get_model, client):
     # Create a mock model that's not loaded

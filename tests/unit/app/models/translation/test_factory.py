@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from babeltron.app.models.factory import get_translation_model, ModelType
+from babeltron.app.models.translation.factory import get_translation_model, ModelType
 
 
-@patch("babeltron.app.models.m2m100.M2M100TranslationModel")
-@patch("babeltron.app.models.nllb.NLLBTranslationModel")
+@patch("babeltron.app.models.translation.m2m100.M2M100TranslationModel")
+@patch("babeltron.app.models.translation.nllb.NLLBTranslationModel")
 def test_get_translation_model_default(mock_nllb_class, mock_m2m100_class):
     """Test that the default model type is M2M100"""
     mock_m2m100_instance = MagicMock()
@@ -18,8 +18,8 @@ def test_get_translation_model_default(mock_nllb_class, mock_m2m100_class):
     mock_nllb_class.assert_not_called()
 
 
-@patch("babeltron.app.models.m2m100.M2M100TranslationModel")
-@patch("babeltron.app.models.nllb.NLLBTranslationModel")
+@patch("babeltron.app.models.translation.m2m100.M2M100TranslationModel")
+@patch("babeltron.app.models.translation.nllb.NLLBTranslationModel")
 def test_get_translation_model_m2m100(mock_nllb_class, mock_m2m100_class):
     """Test getting an M2M100 model explicitly"""
     mock_m2m100_instance = MagicMock()
@@ -32,8 +32,8 @@ def test_get_translation_model_m2m100(mock_nllb_class, mock_m2m100_class):
     mock_nllb_class.assert_not_called()
 
 
-@patch("babeltron.app.models.m2m100.M2M100TranslationModel")
-@patch("babeltron.app.models.nllb.NLLBTranslationModel")
+@patch("babeltron.app.models.translation.m2m100.M2M100TranslationModel")
+@patch("babeltron.app.models.translation.nllb.NLLBTranslationModel")
 def test_get_translation_model_nllb(mock_nllb_class, mock_m2m100_class):
     """Test getting an NLLB model explicitly"""
     mock_nllb_instance = MagicMock()
