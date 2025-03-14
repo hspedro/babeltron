@@ -36,3 +36,8 @@ AUTH_EXCLUDE_PATHS = set(
         "/metrics",
     ]
 )
+
+# Cache configuration
+CACHE_HOST = os.getenv("CACHE_HOST", "cache")
+CACHE_PORT = os.getenv("CACHE_PORT", "6379")
+CACHE_TTL_SECONDS = os.getenv("CACHE_TTL_SECONDS", "3600")  # 1 hour

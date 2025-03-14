@@ -22,6 +22,9 @@ services:
       - PORT=${PORT:-8000}
       - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
       - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - CACHE_HOST=${CACHE_HOST:-cache}
+      - CACHE_PORT=${CACHE_PORT:-6379}
+      - CACHE_TTL_SECONDS=${CACHE_TTL_SECONDS:-3600}
     restart: unless-stopped
     deploy:
       resources:
@@ -37,7 +40,21 @@ services:
       retries: 3
       start_period: 40s
     depends_on:
+      - valkey
       - otel-collector
+
+  valkey:
+    image: valkey/valkey:latest
+    container_name: cache
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    mem_limit: 512m
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    command: ["--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
 
   prometheus:
     image: prom/prometheus:latest
