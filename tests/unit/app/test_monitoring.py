@@ -115,11 +115,59 @@ class TestMonitoring:
     def test_translation_latency_observe(self, mock_time):
         mock_time.side_effect = [100.0, 105.0]
 
-        with TRANSLATION_LATENCY.labels(src_lang="en", tgt_lang="fr").time():
+        with TRANSLATION_LATENCY.labels(src_lang="en", tgt_lang="fr", detection_used="false").time():
             pass
 
     def test_translation_count_inc(self):
-        before = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr")._value.get()
-        TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr").inc()
-        after = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr")._value.get()
+        before = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr", detection_used="false")._value.get()
+        TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr", detection_used="false").inc()
+        after = TRANSLATION_COUNT.labels(src_lang="en", tgt_lang="fr", detection_used="false")._value.get()
         assert after == before + 1
+
+    @pytest.mark.asyncio
+    async def test_track_dynamic_translation_metrics_with_auto_detection(self):
+        # Create a mock request with auto detection
+        mock_request = MagicMock()
+        mock_request.src_lang = "auto"
+        mock_request.tgt_lang = "fr"
+        mock_request.text = "Hello world"
+
+        @track_dynamic_translation_metrics()
+        async def test_func(request):
+            return "result"
+
+        result = await test_func(mock_request)
+
+        assert result == "result"
+
+    @pytest.mark.asyncio
+    async def test_track_dynamic_translation_metrics_with_empty_src_lang(self):
+        # Create a mock request with empty source language (should trigger detection)
+        mock_request = MagicMock()
+        mock_request.src_lang = ""
+        mock_request.tgt_lang = "fr"
+        mock_request.text = "Hello world"
+
+        @track_dynamic_translation_metrics()
+        async def test_func(request):
+            return "result"
+
+        result = await test_func(mock_request)
+
+        assert result == "result"
+
+    @pytest.mark.asyncio
+    async def test_track_dynamic_translation_metrics_with_none_src_lang(self):
+        # Create a mock request with None source language (should trigger detection)
+        mock_request = MagicMock()
+        mock_request.src_lang = None
+        mock_request.tgt_lang = "fr"
+        mock_request.text = "Hello world"
+
+        @track_dynamic_translation_metrics()
+        async def test_func(request):
+            return "result"
+
+        result = await test_func(mock_request)
+
+        assert result == "result"

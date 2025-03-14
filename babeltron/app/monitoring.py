@@ -49,14 +49,14 @@ ERROR_COUNT = Counter(
 TRANSLATION_COUNT = Counter(
     "translation_requests_total",
     "Total count of translation requests",
-    ["src_lang", "tgt_lang"],
+    ["src_lang", "tgt_lang", "detection_used"],
     registry=registry,
 )
 
 TRANSLATION_LATENCY = Histogram(
     "translation_duration_seconds",
     "Translation processing time in seconds",
-    ["src_lang", "tgt_lang"],
+    ["src_lang", "tgt_lang", "detection_used"],
     buckets=(
         0.05,
         0.1,
@@ -156,18 +156,34 @@ def track_dynamic_translation_metrics():
             src_lang = getattr(request, "src_lang", "unknown")
             tgt_lang = getattr(request, "tgt_lang", "unknown")
 
+            # Determine if language detection will be used
+            detection_used = "false"
+            if hasattr(request, "src_lang"):
+                if (
+                    request.src_lang is None
+                    or request.src_lang == ""
+                    or (
+                        isinstance(request.src_lang, str)
+                        and request.src_lang.lower() == "auto"
+                    )
+                ):
+                    detection_used = "true"
+
             # For detection requests, use special labels
             if hasattr(request, "text") and not hasattr(request, "src_lang"):
                 src_lang = "detect"
                 tgt_lang = "detect"
+                detection_used = "true"  # Detection-only endpoint
 
-            TRANSLATION_COUNT.labels(src_lang=src_lang, tgt_lang=tgt_lang).inc()
+            TRANSLATION_COUNT.labels(
+                src_lang=src_lang, tgt_lang=tgt_lang, detection_used=detection_used
+            ).inc()
 
             result = await func(*args, **kwargs)
 
-            TRANSLATION_LATENCY.labels(src_lang=src_lang, tgt_lang=tgt_lang).observe(
-                time.time() - start_time
-            )
+            TRANSLATION_LATENCY.labels(
+                src_lang=src_lang, tgt_lang=tgt_lang, detection_used=detection_used
+            ).observe(time.time() - start_time)
 
             return result
 
