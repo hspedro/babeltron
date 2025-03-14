@@ -33,12 +33,10 @@ def get_model_path() -> str:
 
     # First, look for M2M100 model directories
     for base_path in possible_paths:
-        print(f"Checking base path: {base_path}")
         if not base_path.exists():
             continue
 
         m2m_dirs = list(base_path.glob("m2m*"))
-        print(f"Checking m2m_dirs path: {m2m_dirs}")
         if m2m_dirs:
             # Use the first matching directory
             logging.info(f"Found M2M100 model directory: {m2m_dirs[0]}")
