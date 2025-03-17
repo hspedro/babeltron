@@ -230,4 +230,4 @@ async def languages():
             detail="Translation model not loaded. Please check server logs.",
         )
 
-    return {"languages": model.supported_languages}
+    return {"languages": model.get_languages()}

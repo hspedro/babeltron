@@ -232,14 +232,14 @@ def test_languages_endpoint(mock_translation_model, mock_get_model, client):
     mock_model = MagicMock()
     mock_model.is_loaded = True
     mock_model._model_path = "/mocked/path"
-    mock_model.supported_languages = ["en", "fr", "es", "de"]
+    mock_model.get_languages.return_value = ["en", "fr", "es", "de"]
 
     # Make the factory return our mock model
     mock_get_model.return_value = mock_model
 
     # Configure the translation_model mock
     mock_translation_model.is_loaded = True
-    mock_translation_model.supported_languages = ["en", "fr", "es", "de"]
+    mock_translation_model.get_languages.return_value = ["en", "fr", "es", "de"]
 
     response = client.get("/api/v1/languages")
     assert response.status_code == status.HTTP_200_OK
