@@ -5,18 +5,17 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen.svg)](https://github.com/hspedro/babeltron/actions/workflows/test.yml)
 
-A Python-based REST API that leverages powerful multilingual translation models (M2M100 and NLLB) to
-provide efficient text translation services. Babeltron exposes a simple interface
-for translating text between multiple languages, making powerful neural machine
-translation accessible through straightforward API endpoints.
+A Python-based REST API that leverages multilingual translation models (M2M100, NLLB, and others)
+to provide text translation. Babeltron exposes a REST API for translating text between multiple languages
+with language detection if none source was specified.
 
 ## Features
 
-- Receives a text, source language and destination language, then returns the text
-  translated
-- Supports two powerful translation models:
-  - **M2M100**: Supports 100+ languages
-  - **NLLB (No Language Left Behind)**: Supports 200+ languages, including many low-resource languages
+- Receives a text, source language and destination language, then returns the text translated
+- Receives a text and destination language, detects source language, then returns the text translated
+- Supports two translation models:
+  - **M2M100**: Supports 100+ languages, CC-BY-NC license
+  - **NLLB (No Language Left Behind)**: Supports 200+ languages, CC-BY-NC license
 - **Language Detection**: Automatically detects the language of text using the Lingua language detector, which is highly accurate even for short text snippets
   - Lingua prioritizes quality over quantity, focusing on accurate detection rather than supporting every possible language
   - Supports 75 different languages with high precision, even though the translation models accept 200+ languages
@@ -43,38 +42,21 @@ curl -sSL https://install.python-poetry.org | python3 -
 make install
 ```
 
-## Development Commands
+## Running the Project
 
 The project includes several helpful make commands:
 
-- `make install` - Install project dependencies
+- `make serve` - Serves the API in port 8000
+- `make download-model` - Downloads model from HuggingFace and stores locally in `./models`
+- `make docker-up` - Serves the API and dockerized services like otel, jeager, prometheus, and valkey (cache)
+
+### Development Commands
+
 - `make test` - Run tests
 - `make lint` - Run linters (flake8, isort, black)
 - `make format` - Format code with isort and black
 - `make coverage` - Run tests with coverage report
 - `make coverage-html` - Generate HTML coverage report
-
-## Testing and Code Coverage
-
-### Running Tests with Coverage
-
-To run tests with coverage reporting:
-
-```bash
-make coverage
-```
-
-For a detailed HTML coverage report:
-
-```bash
-make coverage-html
-```
-
-The HTML report will be generated in the `htmlcov` directory.
-
-### Coverage Configuration
-
-The project uses a `.coveragerc` file to configure coverage settings. This ensures consistent coverage reporting across different environments.
 
 ## Downloading Translation Models
 
@@ -318,6 +300,7 @@ The following environment variables can be used to configure the application:
 - `PORT`: Port to run the API server on (default: `8000`)
 - `WORKER_COUNT`: Number of worker processes to use (default: `1`)
 - `BABELTRON_MODEL_TYPE`: Type of model to use in the API (`m2m100` or `nllb`, default: `m2m100`)
+- `AUTH_USERNAME` and `AUTH_PASSWORD`: Enables basic auth on translate and detect endpoints
 
 ### Docker Volume Mounts
 
@@ -442,42 +425,12 @@ For a detailed technical overview of the system architecture, including diagrams
 
 ![Babeltron Overview](docs/images/overview.png)
 
-## Downloading Models
-
-Before using Babeltron, you need to download at least one model:
-
-### Translation Models
-
-```bash
-# Download the default M2M100 small model (418M parameters)
-make download-model-m2m-small
-
-# Download the M2M100 medium model (1.2B parameters)
-make download-model-m2m-medium
-
-# Download the M2M100 large model (12B parameters)
-make download-model-m2m-large
-
-# Download the NLLB small model (600M parameters)
-make download-model-nllb-small
-
-# Download the NLLB large model (3.3B parameters)
-make download-model-nllb-large
-```
-
-### Language Detection Model
-
-```bash
-# Download the XLM-RoBERTa model for language detection
-make download-model-xlm-roberta
-```
-
 ## API Usage
 
 ### Translation
 
 ```bash
-curl -X POST "http://localhost:8000/translate" \
+curl -X POST "http://localhost:8000/api/v1/translate" \
      -H "Content-Type: application/json" \
      -d '{"text": "Hello, how are you?", "source_lang": "en", "target_lang": "fr"}'
 ```
@@ -489,10 +442,10 @@ Response:
 }
 ```
 
-### Language Detection
+### Detection
 
 ```bash
-curl -X POST "http://localhost:8000/detect" \
+curl -X POST "http://localhost:8000/api/v1/detect" \
      -H "Content-Type: application/json" \
      -d '{"text": "Hello, how are you?"}'
 ```
