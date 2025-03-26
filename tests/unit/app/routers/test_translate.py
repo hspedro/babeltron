@@ -454,3 +454,104 @@ def test_translate_detection_error(mock_m2m_model, client):
         assert "detail" in data
         assert "detection error" in data["detail"].lower()
         assert "test error" in data["detail"].lower()
+
+
+@patch("babeltron.app.models.translation.factory.get_translation_model")
+@patch("babeltron.app.routers.translate.translation_model", new_callable=MagicMock)
+def test_translate_with_cache_disabled(mock_translation_model, mock_get_model, mock_m2m_model, client):
+    # Set up both mocks to return our mock model
+    mock_get_model.return_value = mock_m2m_model
+
+    # Configure the translation_model mock
+    for attr_name in ["is_loaded", "architecture", "translate"]:
+        setattr(mock_translation_model, attr_name, getattr(mock_m2m_model, attr_name))
+
+    # Set the model_type attribute on the mock
+    mock_translation_model.model_type = "m2m100"
+    mock_m2m_model.model_type = "m2m100"
+
+    # Test data with cache disabled
+    test_data = {
+        "text": "Hello world",
+        "src_lang": "en",
+        "tgt_lang": "fr",
+        "cache": False
+    }
+
+    # Mock the cache service to return a cached result
+    with patch("babeltron.app.routers.translate.cache_service") as mock_cache:
+        mock_cache.get_translation.return_value = {
+            "translation": "Cached translation",
+            "model_type": "m2m100",
+            "architecture": "cpu_compiled",
+            "cached": True
+        }
+
+        response = client.post("/api/v1/translate", json=test_data)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["translation"] == "Bonjour le monde"  # Should use fresh translation, not cached
+        assert data["model_type"] == "m2m100"
+        assert data["architecture"] == "cpu_compiled"
+        assert data["detected_lang"] is None
+        assert data["detection_confidence"] is None
+        assert data["cached"] is False
+
+        # Verify the model was called correctly
+        mock_m2m_model.translate.assert_called_once()
+        args, kwargs = mock_m2m_model.translate.call_args
+        assert args[0] == "Hello world"
+        assert args[1] == "en"
+        assert args[2] == "fr"
+
+        # Verify cache was not used
+        mock_cache.get_translation.assert_not_called()
+        mock_cache.save_translation.assert_not_called()
+
+
+@patch("babeltron.app.models.translation.factory.get_translation_model")
+@patch("babeltron.app.routers.translate.translation_model", new_callable=MagicMock)
+def test_translate_with_cache_enabled(mock_translation_model, mock_get_model, mock_m2m_model, client):
+    # Set up both mocks to return our mock model
+    mock_get_model.return_value = mock_m2m_model
+
+    # Configure the translation_model mock
+    for attr_name in ["is_loaded", "architecture", "translate"]:
+        setattr(mock_translation_model, attr_name, getattr(mock_m2m_model, attr_name))
+
+    # Set the model_type attribute on the mock
+    mock_translation_model.model_type = "m2m100"
+    mock_m2m_model.model_type = "m2m100"
+
+    # Test data with cache enabled (default)
+    test_data = {
+        "text": "Hello world",
+        "src_lang": "en",
+        "tgt_lang": "fr"
+    }
+
+    # Mock the cache service to return a cached result
+    with patch("babeltron.app.routers.translate.cache_service") as mock_cache:
+        mock_cache.get_translation.return_value = {
+            "translation": "Cached translation",
+            "model_type": "m2m100",
+            "architecture": "cpu_compiled",
+            "cached": True
+        }
+
+        response = client.post("/api/v1/translate", json=test_data)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["translation"] == "Cached translation"  # Should use cached translation
+        assert data["model_type"] == "m2m100"
+        assert data["architecture"] == "cpu_compiled"
+        assert data["detected_lang"] is None
+        assert data["detection_confidence"] is None
+        assert data["cached"] is True
+
+        # Verify the model was not called (using cached result)
+        mock_m2m_model.translate.assert_not_called()
+
+        # Verify cache was used
+        mock_cache.get_translation.assert_called_once()
+        mock_cache.save_translation.assert_not_called()  # Should not save since we used cached result

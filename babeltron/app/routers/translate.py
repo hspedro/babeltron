@@ -36,6 +36,11 @@ class TranslationRequest(BaseModel):
     tgt_lang: str = Field(
         ..., description="Target language code (ISO 639-1)", example="es"
     )
+    cache: bool = Field(
+        True,
+        description="Whether to use and store results in cache. Set to false to bypass cache.",
+        example=True,
+    )
 
     class Config:
         json_schema_extra = {
@@ -43,6 +48,7 @@ class TranslationRequest(BaseModel):
                 "text": "Hello, how are you?",
                 "src_lang": "en",
                 "tgt_lang": "es",
+                "cache": True,
             }
         }
 
@@ -75,6 +81,8 @@ class TranslationResponse(BaseModel):
     For automatic source language detection, set src_lang to "auto" or leave it empty.
 
     The model used for translation is determined by the BABELTRON_MODEL_TYPE environment variable.
+
+    Set cache=false to bypass the cache service and always perform a fresh translation.
     """,
     response_description="The translated text in the target language",
     status_code=status.HTTP_200_OK,
@@ -84,6 +92,7 @@ async def translate(request: TranslationRequest):
     current_span = trace.get_current_span()
     current_span.set_attribute("text_length", len(request.text))
     current_span.set_attribute("tgt_lang", request.tgt_lang)
+    current_span.set_attribute("cache_enabled", request.cache)
 
     current_span.set_attribute("model_type", translation_model.model_type)
 
@@ -145,21 +154,20 @@ async def translate(request: TranslationRequest):
         current_span.set_attribute("src_lang", src_lang)
         current_span.set_attribute("auto_detection", False)
 
-    # Check cache for existing translation
-    cached_result = cache_service.get_translation(
-        request.text, src_lang, request.tgt_lang
-    )
-    if cached_result:
-        logging.info(f"Cache hit for translation: {src_lang} -> {request.tgt_lang}")
-        current_span.set_attribute("cache_hit", True)
+    # Check cache for existing translation only if caching is enabled
+    cached_result = None
+    if request.cache:
+        cached_result = cache_service.get_translation(
+            request.text, src_lang, request.tgt_lang
+        )
+        if cached_result:
+            logging.info(f"Cache hit for translation: {src_lang} -> {request.tgt_lang}")
+            current_span.set_attribute("cache_hit", True)
 
-        # Add the cached flag to the response
-        cached_result["cached"] = True
-        return cached_result
+            # Add the cached flag to the response
+            cached_result["cached"] = True
+            return cached_result
 
-    logging.info(
-        f"Translating text from {src_lang} to {request.tgt_lang} using {translation_model.model_type} model"
-    )
     current_span.set_attribute("cache_hit", False)
 
     if not translation_model.is_loaded:
@@ -199,10 +207,11 @@ async def translate(request: TranslationRequest):
             "cached": False,
         }
 
-        # Cache the result
-        cache_service.save_translation(
-            request.text, src_lang, request.tgt_lang, response
-        )
+        # Cache the result only if caching is enabled
+        if request.cache:
+            cache_service.save_translation(
+                request.text, src_lang, request.tgt_lang, response
+            )
 
         return response
 
