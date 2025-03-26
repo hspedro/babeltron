@@ -239,11 +239,16 @@ class NLLBTranslationModel(TranslationModelBase):
             "en": "eng_Latn",
             "fr": "fra_Latn",
             "es": "spa_Latn",
+            "es-419": "spa_Latn",
             "de": "deu_Latn",
             "zh": "zho_Hans",
+            "zh-cn": "zho_Hans",
+            "zh-tw": "zho_Hant",
             "ar": "ara_Arab",
             "ru": "rus_Cyrl",
             "pt": "por_Latn",
+            "pt-br": "por_Latn",
+            "pt-pt": "por_Latn",
             "it": "ita_Latn",
             "ja": "jpn_Jpan",
             "ko": "kor_Hang",
@@ -311,6 +316,7 @@ class NLLBTranslationModel(TranslationModelBase):
             return lang_code
 
         # If we have a mapping, use it
+        lang_code = lang_code.lower()
         if lang_code in iso_to_nllb:
             return iso_to_nllb[lang_code]
 
