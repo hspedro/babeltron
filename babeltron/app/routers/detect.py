@@ -24,13 +24,14 @@ class DetectionRequest(BaseModel):
         description="The text to detect source language",
         example="Hello, how are you?",
     )
+    cache: bool = Field(
+        True,
+        description="Whether to use and store results in cache. Set to false to bypass cache.",
+        example=True,
+    )
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "text": "Hello, how are you?",
-            }
-        }
+        json_schema_extra = {"example": {"text": "Hello, how are you?", "cache": True}}
 
 
 class DetectionResponse(BaseModel):
@@ -52,6 +53,8 @@ class DetectionResponse(BaseModel):
     highly accurate even for short text snippets.
 
     Provide the text to detect source language.
+
+    Set cache=false to bypass the cache service and always perform a fresh detection.
     """,
     response_description="The detected language",
     status_code=status.HTTP_200_OK,
@@ -60,20 +63,23 @@ class DetectionResponse(BaseModel):
 async def detect(request: DetectionRequest):
     current_span = trace.get_current_span()
     current_span.set_attribute("text_length", len(request.text))
+    current_span.set_attribute("cache_enabled", request.cache)
 
-    # Check cache for existing detection result
-    cached_result = cache_service.get_detection(request.text)
-    if cached_result:
-        logging.info("Cache hit for language detection")
-        current_span.set_attribute("cache_hit", True)
+    # Check cache for existing detection result only if caching is enabled
+    cached_result = None
+    if request.cache:
+        cached_result = cache_service.get_detection(request.text)
+        if cached_result:
+            logging.info("Cache hit for language detection")
+            current_span.set_attribute("cache_hit", True)
 
-        # Add the cached flag to the response
-        cached_result["cached"] = True
-        return cached_result
+            cached_result["cached"] = True
+            return cached_result
+
+    current_span.set_attribute("cache_hit", False)
 
     # Use the pre-loaded model based on model_type
     model = detection_model
-    current_span.set_attribute("cache_hit", False)
 
     # Check if model is None
     if model is None:
@@ -116,8 +122,8 @@ async def detect(request: DetectionRequest):
             "cached": False,
         }
 
-        # Cache the result
-        cache_service.save_detection(request.text, response)
+        if request.cache:
+            cache_service.save_detection(request.text, response)
 
         return response
 
